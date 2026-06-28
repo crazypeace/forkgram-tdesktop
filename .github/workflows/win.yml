@@ -1,6 +1,7 @@
 name: Windows.
 
 on:
+  workflow_dispatch:
   push:
     paths-ignore:
       - 'docs/**'
@@ -48,14 +49,10 @@ jobs:
 
     strategy:
       matrix:
-        arch: [x64_x86, x64, arm64]
-        qt: ["", qt6]
-        generator: ["", "Ninja Multi-Config"]
-        exclude:
-          - arch: arm64
-            qt: ""
-          - arch: x64_x86
-            qt: qt6
+        arch: [x64]
+        qt: [qt6]
+        generator: [""]
+        exclude: []
 
     env:
       UPLOAD_ARTIFACT: "true"
@@ -202,11 +199,7 @@ jobs:
 
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
 
-          API="-D TDESKTOP_API_TEST=ON"
-          if [ $GITHUB_REF == 'refs/heads/nightly' ]; then
-            echo "Use the open credentials."
-            API="-D TDESKTOP_API_ID=611335 -D TDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c"
-          fi
+          API="-D TDESKTOP_API_ID=${{ secrets.API_ID }} -D TDESKTOP_API_HASH=${{ secrets.API_HASH }}"
           echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
 
       - name: Free up some disk space.

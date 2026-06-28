@@ -1671,7 +1671,6 @@ win:
         -system-webp ^
         -system-zlib ^
         -system-libjpeg ^
-        -no-icu ^
         -platform win32-msvc ^
         -D ZLIB_WINAPI ^
         -- ^

@@ -244,16 +244,16 @@ jobs:
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
 
-          call configure.bat \
-          %TDESKTOP_BUILD_GENERATOR% \
-          %TDESKTOP_BUILD_ARCH% \
-          ${{ matrix.qt }} \
-          %TDESKTOP_BUILD_API% \
-          -D CMAKE_CONFIGURATION_TYPES=Release \
-          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
-          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= \
-          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
-          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
+          call configure.bat ^
+          %TDESKTOP_BUILD_GENERATOR% ^
+          %TDESKTOP_BUILD_ARCH% ^
+          ${{ matrix.qt }} ^
+          %TDESKTOP_BUILD_API% ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
+          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           %TDESKTOP_BUILD_DEFINE%
 
           cmake --build ..\out --config Release --parallel

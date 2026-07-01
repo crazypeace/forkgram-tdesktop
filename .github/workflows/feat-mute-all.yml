@@ -36,40 +36,27 @@ jobs:
     env:
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
-      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 
     defaults:
       run:
         shell: cmd
 
     steps:
-      - name: Prepare directories.
-        run: |
-          mkdir %userprofile%\TBuild\Libraries
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
-          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries>>%GITHUB_ENV
-
-      - name: Get repository name.
-        shell: bash
-        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
-
       - name: Clone.
         uses: actions/checkout@v7
         with:
           submodules: recursive
-          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - name: First set up.
         shell: bash
         run: |
-          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          DOCPATH=$GITHUB_WORKSPACE/docs/building-win.md
           SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
           echo "SDK=$SDK" >> $GITHUB_ENV
 
           sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
 
-          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$(sha256sum $GITHUB_WORKSPACE/Telegram/build/prepare/prepare.py | awk '{ print $1 }')" >> CACHE_KEY.txt
           echo "$SDK" >> CACHE_KEY.txt
           echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
 
@@ -140,36 +127,13 @@ jobs:
         id: cache-third-party
         uses: actions/cache@v5
         with:
-          path: ${{ env.TBUILD }}\ThirdParty
+          path: ${{ github.workspace }}\ThirdParty
           key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
 
-      - name: Libraries cache.
-        id: cache-libs
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\*
-            !${{ env.LibrariesPath }}\cache_keys
-            !${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\*
-            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
-
-      - name: Qt cache.
-        id: cache-qt
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-
-
       - name: Libraries.
         run: |
-          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent ${{ matrix.qt }}
+          ${{ github.workspace }}\Telegram\build\prepare\win.bat silent ${{ matrix.qt }}
 
       - name: Read configuration matrix.
         shell: bash
@@ -185,23 +149,10 @@ jobs:
           API="-D TDESKTOP_API_ID=${{ secrets.API_ID }} -D TDESKTOP_API_HASH=${{ secrets.API_HASH }}"
           echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
 
-      - name: Free up some disk space.
-        shell: bash
-        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
-
-      - name: Build output cache.
-        id: cache-build
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out
-          key: ${{ runner.OS }}-${{ matrix.arch }}-build-${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ runner.OS }}-${{ matrix.arch }}-build-
-
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
-          cd %TBUILD%\%REPO_NAME%\Telegram
+          cd ${{ github.workspace }}\Telegram
 
           call configure.bat ^
           %TDESKTOP_BUILD_ARCH% ^
@@ -217,7 +168,7 @@ jobs:
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          set OUT=%TBUILD%\%REPO_NAME%\out\Release
+          set OUT=${{ github.workspace }}\out\Release
           mkdir artifact
           move %OUT%\Telegram.exe artifact/
           move %OUT%\Updater.exe artifact/

@@ -235,7 +235,7 @@ uint64 Entry::computeSortPosition(FilterId filterId) const {
 		if (const auto history = asHistory()) {
 			const auto muted = history->muted();
 			const auto unreadCount = history->unreadCount();
-			if (!history->isForum() && !muted && unreadCount > 0) {
+			if (!history->isForum() && !muted && (unreadCount > 0 || history->unreadMentions().has())) {
 				return 0xFFFFFFFF000000FFULL - 30;
 			}
 		}

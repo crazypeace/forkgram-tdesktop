@@ -29,8 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/power_saving.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/choose_filter_box.h"
@@ -437,19 +437,10 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 			std::move(filteredChats),
 			addAction);
 
-		addAction(
-			tr::lng_mute_menu_duration_forever(tr::now),
-			[=] {
-				_session->show(
-					Ui::MakeConfirmBox({
-						.text = TextWithEntities{ "Mute all chats in this folder?" },
-						.confirmed = [=](Fn<void()> &&close) {
-							close();
-						},
-					}),
-					Ui::LayerOption::CloseOther);
-			},
-			&st::menuIconMute);
+		Window::MenuAddMuteAllChatListAction(
+			_session,
+			[=] { return _session->session().data().chatsFilters().chatsList(id); },
+			addAction);
 
 		addAction({
 			.text = tr::lng_filters_context_remove(tr::now),
@@ -472,19 +463,10 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 			addAction,
 			std::move(customUnreadState));
 
-		addAction(
-			tr::lng_mute_menu_duration_forever(tr::now),
-			[=] {
-				_session->show(
-					Ui::MakeConfirmBox({
-						.text = TextWithEntities{ "Mute all chats?" },
-						.confirmed = [=](Fn<void()> &&close) {
-							close();
-						},
-					}),
-					Ui::LayerOption::CloseOther);
-			},
-			&st::menuIconMute);
+		Window::MenuAddMuteAllChatListAction(
+			_session,
+			[=] { return _session->session().data().chatsList(); },
+			addAction);
 
 		addAction(
 			tr::lng_filters_setup_menu(tr::now),

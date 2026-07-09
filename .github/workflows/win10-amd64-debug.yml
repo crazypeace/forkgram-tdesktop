@@ -1,0 +1,319 @@
+name: Windows Debug.
+
+concurrency:
+  group: win10-amd64-debug-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - for-forkgram-v6.9.4
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '!docs/building-win*.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/win10-amd64-debug.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/docker/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.sh'
+      - 'Telegram/Telegram.plist'
+
+jobs:
+
+  windows:
+    name: Windows Debug
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || ((github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/nightly') && 'depot-windows-latest-16' || 'windows-latest') }}
+
+    strategy:
+      matrix:
+        arch: [x64]
+        qt: ["qt6"]
+        generator: [""]
+
+    env:
+      UPLOAD_ARTIFACT: "true"
+      ONLY_CACHE: "false"
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+      TMP: "D:\\TBuild\\tmp"
+      TEMP: "D:\\TBuild\\tmp"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mkdir %userprofile%\TBuild\tmp
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries${{ matrix.arch == 'x64' && '\\win64' || '' }}>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          echo "Configurate git for cherry-picks."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Sample"
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt.
+        with:
+          arch: ${{ matrix.arch }}
+          sdk: ${{ env.SDK }}
+          toolset: ${{ case(matrix.arch == 'arm64', '', '14.44') }}
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages" 2>nul
+
+      - name: Install ATL.
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set "VSPATH=%%i"
+          echo VS install path: %VSPATH%
+          echo VCToolsVersion: %VCToolsVersion%
+          if exist "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc\include\atlbase.h" (
+            echo ATL headers already present in MSVC toolset, skipping install.
+            exit /b 0
+          )
+          echo Attempting to install ATL component via vs_installer.exe...
+          "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" modify --installPath "%VSPATH%" --add Microsoft.VisualStudio.Component.VC.ATL --quiet --wait --norestart
+          echo vs_installer.exe returned: %errorlevel%
+          if exist "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc\include\atlbase.h" (
+            echo ATL headers installed successfully via vs_installer.exe.
+            exit /b 0
+          )
+          echo vs_installer.exe did not install ATL, trying choco...
+          choco install visualstudio2022-workload-vctools -y --no-progress --package-parameters "--quiet --wait --norestart" || echo choco install returned: %errorlevel%
+          if exist "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc\include\atlbase.h" (
+            echo ATL headers installed successfully via choco.
+            exit /b 0
+          )
+          echo Searching for ATL headers in other VS installations...
+          for /f "usebackq delims=" %%j in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all -property installationPath`) do (
+            for /d %%m in ("%%j\VC\Tools\MSVC\*") do (
+              if exist "%%m\atlmfc\include\atlbase.h" (
+                echo ATL found at %%m\atlmfc, copying to primary installation...
+                xcopy /E /I /Y "%%m\atlmfc" "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc"
+                if not errorlevel 1 (
+                  echo ATL headers copied successfully from other VS installation.
+                  exit /b 0
+                )
+              )
+            )
+          )
+          for /f "usebackq delims=" %%j in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all -property installationPath`) do (
+            if exist "%%j\atlmfc\include\atlbase.h" (
+              echo ATL found at %%j\atlmfc, copying to primary installation...
+              mkdir "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc" 2>nul
+              xcopy /E /I /Y "%%j\atlmfc\include" "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc\include"
+              if exist "%%j\atlmfc\lib" xcopy /E /I /Y "%%j\atlmfc\lib" "%VSPATH%\VC\Tools\MSVC\%VCToolsVersion%\atlmfc\lib"
+              exit /b 0
+            )
+          )
+          echo ERROR: ATL headers not found. dump_syms build requires ATL.
+          exit /b 1
+
+      - name: ThirdParty cache.
+        id: cache-third-party
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
+
+      - name: Qt cache.
+        id: cache-qt
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-${{ env.CACHE_KEY }}-debugonly
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-${{ env.CACHE_KEY }}-debugonly
+
+      - name: Free up disk space before Libraries.
+        shell: bash
+        run: |
+          echo "Disk before:"
+          df -h C: || true
+          # Remove bulky unneeded components to make room for the Qt build.
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+          # Clean docker images if present
+          docker rmi $(docker images -q) 2>/dev/null || true
+          echo "Disk after:"
+          df -h C: || true
+
+      - name: Libraries.
+        env:
+          CMAKE_INSTALL_MODE: COPY
+        run: |
+          set LOG=%RUNNER_TEMP%\libraries.log
+          echo [%date% %time%] === Libraries step START === > "%LOG%"
+          echo [%date% %time%] prepare.py at: %TBUILD%\%REPO_NAME%\Telegram\build\prepare\prepare.py >> "%LOG%"
+          echo [%date% %time%] LIBS_DIR=%LIBS_DIR%  CACHE_KEY=%CACHE_KEY% >> "%LOG%"
+          echo [%date% %time%] Calling win.bat skip-release silent qt6  (skip-release -> Debug-only Qt6) >> "%LOG%"
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent qt6 >> "%LOG%" 2>&1
+          set RC=%errorlevel%
+          echo [%date% %time%] === Libraries step END rc=%RC% === >> "%LOG%"
+          type "%LOG%"
+          if %RC% neq 0 exit /b %RC%
+
+      - name: Upload Libraries log (always).
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-libraries-${{ github.run_id }}
+          path: ${{ runner.temp }}\libraries.log
+          if-no-files-found: warn
+
+      - name: Read configuration matrix.
+        shell: bash
+        run: |
+          ARTIFACT_NAME="Telegram-Debug"
+
+          ARCH=""
+          if [ -n "${{ matrix.arch }}" ]; then
+            case "${{ matrix.arch }}" in
+              x64_x86) ARCH="x86";;
+              arm64) ARCH="arm";;
+              *) ARCH="${{ matrix.arch }}";;
+            esac
+            echo "Architecture from matrix: $ARCH"
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.arch }}"
+          fi
+
+          if [ -n "${{ matrix.qt }}" ]; then
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.qt }}"
+          fi
+
+          GENERATOR=""
+          if [ -n "${{ matrix.generator }}" ]; then
+            GENERATOR="-G \"${{ matrix.generator }}\""
+            echo "Generator: $GENERATOR"
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.generator }}"
+          fi
+          echo "TDESKTOP_BUILD_GENERATOR=$GENERATOR" >> $GITHUB_ENV
+
+          [ -n "$GENERATOR" ] && ARCH=""
+          echo "TDESKTOP_BUILD_ARCH=$ARCH" >> $GITHUB_ENV
+
+          DEFINE=""
+          if [ -n "${{ matrix.defines }}" ]; then
+            DEFINE="-D ${{ matrix.defines }}=ON"
+            echo "Define: $DEFINE"
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.defines }}"
+          fi
+          echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
+
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+
+          API="-D TDESKTOP_API_ID=${{ secrets.API_ID }} -D TDESKTOP_API_HASH=${{ secrets.API_HASH }}"
+          echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Telegram Desktop build.
+        if: env.ONLY_CACHE == 'false'
+        run: |
+          set LOG=%RUNNER_TEMP%\build.log
+          cd %TBUILD%\%REPO_NAME%\Telegram
+          echo [%date% %time%] === Telegram Desktop (Debug) build START === > "%LOG%"
+          echo [%date% %time%] configure.bat flags: %TDESKTOP_BUILD_GENERATOR% %TDESKTOP_BUILD_ARCH% qt6 %TDESKTOP_BUILD_API% >> "%LOG%"
+          echo [%date% %time%] (configure.py selects Qt6 via the literal "qt6" arg) >> "%LOG%"
+
+          call configure.bat ^
+          %TDESKTOP_BUILD_GENERATOR% ^
+          %TDESKTOP_BUILD_ARCH% ^
+          qt6 ^
+          %TDESKTOP_BUILD_API% ^
+          -D CMAKE_CONFIGURATION_TYPES=Debug ^
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
+          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
+          %TDESKTOP_BUILD_DEFINE% >> "%LOG%" 2>&1
+          set CFG_RC=%errorlevel%
+          echo [%date% %time%] configure.bat rc=%CFG_RC% >> "%LOG%"
+          if %CFG_RC% neq 0 (
+            type "%LOG%"
+            exit /b %CFG_RC%
+          )
+
+          echo [%date% %time%] cmake --build --config Debug --parallel START >> "%LOG%"
+          cmake --build ..\out --config Debug --parallel >> "%LOG%" 2>&1
+          set BLD_RC=%errorlevel%
+          echo [%date% %time%] === Telegram Desktop (Debug) build END rc=%BLD_RC% === >> "%LOG%"
+          type "%LOG%"
+          if %BLD_RC% neq 0 exit /b %BLD_RC%
+
+      - name: Upload build log (always).
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-build-${{ github.run_id }}
+          path: ${{ runner.temp }}\build.log
+          if-no-files-found: warn
+
+      - name: Move artifact.
+        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
+        run: |
+          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
+          mkdir artifact
+          move %OUT%\Telegram.exe artifact/
+          move %OUT%\Updater.exe artifact/
+
+      - uses: actions/upload-artifact@v7
+        name: Upload artifact.
+        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: artifact\

@@ -1700,13 +1700,13 @@ win:
 
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
-    cmake --build .
+    cmake --build . --config Release
     cd qtbase
 rem     rem Ensure both qtpaths.exe and qtpaths6.exe exist in build dir before install (for hard link)
 rem     if not exist bin\qtpaths6.exe if exist bin\qtpaths.exe copy /Y bin\qtpaths.exe bin\qtpaths6.exe >nul 2>&1
 rem     if not exist bin\qtpaths.exe if exist bin\qtpaths6.exe copy /Y bin\qtpaths6.exe bin\qtpaths.exe >nul 2>&1
     cd ..
-    cmake --install .
+    cmake --install . --config Release
 """)
 
 stage('tg_owt', """

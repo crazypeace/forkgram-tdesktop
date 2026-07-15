@@ -245,11 +245,15 @@ jobs:
           sudo rm -rf /usr/local/.ghcup /usr/local/share/powershell /usr/local/share/chromium /usr/local/lib/node_modules 2>/dev/null || true
           sudo rm -rf /opt/microsoft /opt/az 2>/dev/null || true
           # Delete Qt source/build directory (qt_6.11.1) - ~5-7GB, only install needed
-          echo "Removing Qt source/build dir (qt_${{ matrix.qt }}):"
-          ls -la "$TBUILD/$REPO_NAME/Telegram/qt_"*/ 2>/dev/null | head -5 || true
+          echo "Removing Qt source/build dirs (Libraries + Telegram):"
+          # Actual location: Libraries/win64/qt_6.x
+          rm -rf "$LibrariesPath/qt_"* 2>/dev/null || true
+          rm -rf "$TBUILD/Libraries/win64/qt_"* 2>/dev/null || true
+          rm -rf "$TBUILD/Libraries/qt_"* 2>/dev/null || true
           rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
-          echo "Removing Qt source/build..."
-          rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
+          # Drop Debug Qt install if present (we only need RelWithDebInfo/Release)
+          rm -rf "$LibrariesPath/Qt-"*/lib/objects-Debug 2>/dev/null || true
+          find "$LibrariesPath/Qt-"* -path '*/objects-Debug/*' -delete 2>/dev/null || true
           echo "Removing .git from checkout..."
           rm -rf "$TBUILD/$REPO_NAME/.git" 2>/dev/null || true
           echo "Removing msys64..."

@@ -150,40 +150,42 @@ jobs:
           restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-
 
       - name: Free up disk space before Libraries.
-        shell: powershell
+        shell: bash
         run: |
-          Write-Host "Disk before cleanup:"
-          Get-PSDrive C | Select-Object @{N='Used(GB)';E={[math]::Round($_.Used/1GB,2)}}, @{N='Free(GB)';E={[math]::Round($_.Free/1GB,2)}}
+          echo "Disk before cleanup:"
+          df -h C: || true
 
           # Remove Android SDK
-          Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
-          if ($env:ANDROID_HOME) {
-              Remove-Item -Recurse -Force $env:ANDROID_HOME -ErrorAction SilentlyContinue
-          }
+          sudo rm -rf /usr/local/lib/android 2>/dev/null || true
+          sudo rm -rf "$ANDROID_ROOT" 2>/dev/null || true
 
           # Remove .NET SDK (keep runtime)
-          if (Test-Path "C:\Program Files\dotnet\sdk") {
-              Get-ChildItem "C:\Program Files\dotnet\sdk" | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          }
+          sudo rm -rf /usr/share/dotnet/sdk 2>/dev/null || true
+          sudo rm -rf /usr/share/dotnet/shared/Microsoft.NETCore.App 2>/dev/null || true
+          sudo rm -rf /etc/dotnet 2>/dev/null || true
 
           # Remove vcpkg
-          Remove-Item -Recurse -Force "C:\vcpkg" -ErrorAction SilentlyContinue
+          sudo rm -rf /usr/local/vcpkg 2>/dev/null || true
 
-          # Remove Chocolatey
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\cache" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
+          # Remove rustup
+          sudo rm -rf /usr/local/.ghcup /usr/local/.rustup 2>/dev/null || true
 
-          # Remove unnecessary tool cache entries (keep MSVC and Windows Kits)
-          $toolCache = "C:\hostedtoolcache"
-          if (Test-Path $toolCache) {
-              Get-ChildItem $toolCache | Where-Object { $_.Name -notmatch 'MSVC|Windows Kits|dotnet' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          }
+          # Remove other dev tools
+          sudo rm -rf /usr/local/ghc /opt/ghc 2>/dev/null || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo rm -rf /opt/microsoft /opt/az 2>/dev/null || true
 
-          # Clean temp files
-          Remove-Item -Recurse -Force "$env:TEMP\*" -ErrorAction SilentlyContinue -Force
+          # Aggressive temp cleanup (bash handles locked files gracefully)
+          sudo rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
+          sudo rm -rf /var/log/* 2>/dev/null || true
+          sudo rm -rf /var/cache/* 2>/dev/null || true
 
-          Write-Host "Disk after cleanup:"
-          Get-PSDrive C | Select-Object @{N='Used(GB)';E={[math]::Round($_.Used/1GB,2)}}, @{N='Free(GB)';E={[math]::Round($_.Free/1GB,2)}}
+          # Clean Windows temp (cmd via bash, rm with -f won't fail on writable files)
+          rm -rf /c/Users/*/AppData/Local/Temp/* 2>/dev/null || true
+          rm -rf /c/Users/*/AppData/Local/Microsoft/Windows/INetCache/* 2>/dev/null || true
+
+          echo "Disk after cleanup:"
+          df -h C: || true
 
       - name: Libraries.
         run: |

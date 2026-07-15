@@ -228,7 +228,11 @@ jobs:
 
       - name: Free up some disk space.
         shell: bash
-        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+        run: |
+          # Remove intermediate build files from libs (keep only .lib, .h, Qt install)
+          find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+          # Also remove Qt source/build dir from Telegram build dir
+          rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
 
       - name: Disk cleanup before build
         shell: bash
@@ -240,6 +244,10 @@ jobs:
           docker rmi $(docker images -q) 2>/dev/null || true
           sudo rm -rf /usr/local/.ghcup /usr/local/share/powershell /usr/local/share/chromium /usr/local/lib/node_modules 2>/dev/null || true
           sudo rm -rf /opt/microsoft /opt/az 2>/dev/null || true
+          # Delete Qt source/build directory (qt_6.11.1) - ~5-7GB, only install needed
+          echo "Removing Qt source/build dir (qt_${{ matrix.qt }}):"
+          ls -la "$TBUILD/$REPO_NAME/Telegram/qt_"*/ 2>/dev/null | head -5 || true
+          rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
           echo "Disk after:"
           df -h C: || true
       - name: Telegram Desktop build.

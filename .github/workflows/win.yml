@@ -150,17 +150,40 @@ jobs:
           restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-
 
       - name: Free up disk space before Libraries.
-        shell: bash
+        shell: powershell
         run: |
-          echo "Disk before:"
-          df -h C: || true
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
-          docker rmi $(docker images -q) 2>/dev/null || true
-          sudo rm -rf /usr/local/.ghcup /usr/local/share/powershell /usr/local/share/chromium /usr/local/lib/node_modules 2>/dev/null || true
-          sudo rm -rf /opt/microsoft /opt/az 2>/dev/null || true
-          echo "Disk after:"
-          df -h C: || true
+          Write-Host "Disk before cleanup:"
+          Get-PSDrive C | Select-Object @{N='Used(GB)';E={[math]::Round($_.Used/1GB,2)}}, @{N='Free(GB)';E={[math]::Round($_.Free/1GB,2)}}
+
+          # Remove Android SDK
+          Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
+          if ($env:ANDROID_HOME) {
+              Remove-Item -Recurse -Force $env:ANDROID_HOME -ErrorAction SilentlyContinue
+          }
+
+          # Remove .NET SDK (keep runtime)
+          if (Test-Path "C:\Program Files\dotnet\sdk") {
+              Get-ChildItem "C:\Program Files\dotnet\sdk" | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
+          # Remove vcpkg
+          Remove-Item -Recurse -Force "C:\vcpkg" -ErrorAction SilentlyContinue
+
+          # Remove Chocolatey
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\cache" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
+
+          # Remove unnecessary tool cache entries (keep MSVC and Windows Kits)
+          $toolCache = "C:\hostedtoolcache"
+          if (Test-Path $toolCache) {
+              Get-ChildItem $toolCache | Where-Object { $_.Name -notmatch 'MSVC|Windows Kits|dotnet' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
+          # Clean temp files
+          Remove-Item -Recurse -Force "$env:TEMP\*" -ErrorAction SilentlyContinue -Force
+
+          Write-Host "Disk after cleanup:"
+          Get-PSDrive C | Select-Object @{N='Used(GB)';E={[math]::Round($_.Used/1GB,2)}}, @{N='Free(GB)';E={[math]::Round($_.Free/1GB,2)}}
 
       - name: Libraries.
         run: |

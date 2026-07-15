@@ -567,7 +567,7 @@ win:
         -DZLIB_MINIZIP_BUILD_TESTING=OFF
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
+    cmake --build .
 mac:
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure \\
         --static \\
@@ -600,7 +600,7 @@ win:
         -DPNG_SUPPORTED=OFF
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
+    cmake --build .
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
         -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
@@ -702,7 +702,7 @@ win:
     cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
+    cmake --build .
 !win:
     mkdir Debug
     cd Debug
@@ -890,8 +890,8 @@ win:
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
-    cmake --install . --config Release
+    cmake --build .
+    cmake --install .
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
@@ -921,8 +921,8 @@ win:
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
-    cmake --install . --config Release
+    cmake --build .
+    cmake --install .
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
@@ -1005,8 +1005,8 @@ win:
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
-    cmake --install . --config Release
+    cmake --build .
+    cmake --install .
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
@@ -1068,8 +1068,8 @@ win:
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
-    cmake --build . --config Release
-    cmake --install . --config Release
+    cmake --build .
+    cmake --install .
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
@@ -1632,8 +1632,8 @@ mac:
         -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \
         -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON
 
-    cmake --build . --config Release
-    cmake --install . --config Release
+    cmake --build .
+    cmake --install .
 win:
     cd qtbase
     echo Applying Qt6 patches (skip win7 compat)...
@@ -1700,13 +1700,13 @@ win:
 
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
-    cmake --build . --config Release
+    cmake --build .
     cd qtbase
-rem     rem Ensure both qtpaths.exe and qtpaths6.exe exist in build dir before install (for hard link)
-rem     if not exist bin\qtpaths6.exe if exist bin\qtpaths.exe copy /Y bin\qtpaths.exe bin\qtpaths6.exe >nul 2>&1
-rem     if not exist bin\qtpaths.exe if exist bin\qtpaths6.exe copy /Y bin\qtpaths6.exe bin\qtpaths.exe >nul 2>&1
+rem rem     rem Ensure both qtpaths.exe and qtpaths6.exe exist in build dir before install (for hard link)
+rem rem     if not exist bin\qtpaths6.exe if exist bin\qtpaths.exe copy /Y bin\qtpaths.exe bin\qtpaths6.exe >nul 2>&1
+rem rem     if not exist bin\qtpaths.exe if exist bin\qtpaths6.exe copy /Y bin\qtpaths6.exe bin\qtpaths.exe >nul 2>&1
     cd ..
-    cmake --install . --config Release
+    cmake --install .
 """)
 
 stage('tg_owt', """
@@ -1844,7 +1844,7 @@ win:
         -Dprotobuf_BUILD_LIBPROTOC=ON ^
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
-    cmake --build . --config Release
+    cmake --build .
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 """)
 # mac:
@@ -1915,7 +1915,7 @@ release:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build . --config Release
+    cmake --build .
 mac:
     buildTd() {
         BUILD_CONFIG=$1

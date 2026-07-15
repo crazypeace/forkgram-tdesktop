@@ -565,7 +565,7 @@ win:
         -DZLIB_BUILD_MINIZIP=ON ^
         -DZLIB_MINIZIP_BUILD_SHARED=OFF ^
         -DZLIB_MINIZIP_BUILD_TESTING=OFF
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
 mac:
@@ -598,7 +598,7 @@ win:
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
 mac:
@@ -681,7 +681,7 @@ win:
     cmake -B out . ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DOPUS_STATIC_RUNTIME=ON
-    cmake --build out --config Debug
+#     cmake --build out --config Debug  # removed for -release CI (#v701)
     cmake --build out --config Release
     cmake --install out --config Release
 mac:
@@ -700,7 +700,7 @@ stage('rnnoise', """
     cd out
 win:
     cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
 !win:
@@ -887,8 +887,8 @@ win:
         -DAVIF_ENABLE_WERROR=OFF ^
         -DAVIF_CODEC_DAV1D=SYSTEM ^
         -DAVIF_LIBYUV=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
+#     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -918,8 +918,8 @@ win:
         -DBUILD_SHARED_LIBS=OFF ^
         -DENABLE_DECODER=OFF ^
         -DENABLE_ENCODER=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
+#     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -1002,8 +1002,8 @@ win:
         -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE ^
         -DCMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE ^
         -DWITH_EXAMPLES=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
+#     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -1065,8 +1065,8 @@ win:
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         %cmake_defines%
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
+#     cmake --install . --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -1375,7 +1375,7 @@ win:
         -D ALSOFT_UTILS=OFF ^
         -D ALSOFT_EXAMPLES=OFF ^
         -D ALSOFT_TESTS=OFF
-    cmake --build build --config Debug
+#     cmake --build build --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build build --config RelWithDebInfo
 mac:
@@ -1523,7 +1523,7 @@ win:
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
-    cmake --build out --config Debug
+#     cmake --build out --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build out --config Release
 """)
@@ -1547,7 +1547,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-debug-and-release
+    SET CONFIGURATIONS=-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt-' + qt + '"') + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
@@ -1609,7 +1609,7 @@ mac:
 
     CONFIGURATIONS=-debug
 release:
-    CONFIGURATIONS=-debug-and-release
+    CONFIGURATIONS=-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
@@ -1649,7 +1649,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-debug-and-release
+    SET CONFIGURATIONS=-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1698,9 +1698,10 @@ win:
         -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
         -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\\Release\\src\\liblcms2.a"
 
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
+#     cmake --install . --config Debug  # removed for -release CI (#v701)
     cmake --build .
+    if not exist "%LIBS_DIR%\\Qt-%QT%\\bin\\qtpaths.exe" copy /Y "%LIBS_DIR%\\Qt-%QT%\\bin\\qtpaths6.exe" "%LIBS_DIR%\\Qt-%QT%\\bin\\qtpaths.exe" >nul 2>&1
     cmake --install .
 """)
 
@@ -1726,7 +1727,7 @@ win:
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH
-    cmake --build out --config Debug
+#     cmake --build out --config Debug  # removed for -release CI (#v701)
 release:
     cmake --build out --config Release
 mac:
@@ -1811,7 +1812,7 @@ win:
         -D ADA_TOOLS=OFF ^
         -D ADA_INCLUDE_URL_PATTERN=OFF ^
         -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    cmake --build out --config Debug
+#     cmake --build out --config Debug  # removed for -release CI (#v701)
     cmake --build out --config Release
 mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -1840,7 +1841,7 @@ win:
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
     cmake --build . --config Release
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
 """)
 # mac:
 #     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
@@ -1888,7 +1889,7 @@ win:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # removed for -release CI (#v701)
 release:
     cd ..
     mkdir Release

@@ -155,38 +155,29 @@ jobs:
           echo "Disk before cleanup:"
           df -h C: || true
 
-          # Remove Android SDK
-          sudo rm -rf /usr/local/lib/android 2>/dev/null || true
-          sudo rm -rf "$ANDROID_ROOT" 2>/dev/null || true
-
-          # Remove .NET SDK (keep runtime)
-          sudo rm -rf /usr/share/dotnet/sdk 2>/dev/null || true
-          sudo rm -rf /usr/share/dotnet/shared/Microsoft.NETCore.App 2>/dev/null || true
-          sudo rm -rf /etc/dotnet 2>/dev/null || true
-
-          # Remove vcpkg
-          sudo rm -rf /usr/local/vcpkg 2>/dev/null || true
-
-          # Remove rustup
-          sudo rm -rf /usr/local/.ghcup /usr/local/.rustup 2>/dev/null || true
-
-          # Remove other dev tools
-          sudo rm -rf /usr/local/ghc /opt/ghc 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          # Kill ASLR and code generation stuff (not needed)
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc 2>/dev/null || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+          docker rmi $(docker images -q) 2>/dev/null || true
+          sudo rm -rf /usr/local/.ghcup /usr/local/share/powershell /usr/local/share/chromium 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/node_modules /usr/local/ghc 2>/dev/null || true
           sudo rm -rf /opt/microsoft /opt/az 2>/dev/null || true
-
-          # Aggressive temp cleanup (bash handles locked files gracefully)
-          sudo rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
-          sudo rm -rf /var/log/* 2>/dev/null || true
-          sudo rm -rf /var/cache/* 2>/dev/null || true
-
-          # Clean Windows temp (cmd via bash, rm with -f won't fail on writable files)
-          rm -rf /c/Users/*/AppData/Local/Temp/* 2>/dev/null || true
-          rm -rf /c/Users/*/AppData/Local/Microsoft/Windows/INetCache/* 2>/dev/null || true
+          sudo rm -rf /usr/local/julia* /usr/local/share/julia 2>/dev/null || true
+          sudo rm -rf /usr/share/miniconda 2>/dev/null || true
+          sudo rm -rf /usr/share/rust /usr/share/swift 2>/dev/null || true
+          sudo rm -rf /usr/local/LiteIDE 2>/dev/null || true
+          # Aggressive temp + cache cleanup
+          sudo rm -rf /tmp/* /var/tmp/* /var/log/* /var/cache/* 2>/dev/null || true
+          sudo rm -rf /c/Users/*/AppData/Local/Temp/* 2>/dev/null || true
+          sudo rm -rf /c/Users/*/AppData/Local/Microsoft/Windows/INetCache/* 2>/dev/null || true
+          sudo rm -rf /c/Users/*/AppData/Local/PipCache 2>/dev/null || true
+          sudo rm -rf /c/Users/*/AppData/Local/NuGet 2>/dev/null || true
+          # vcpkg cache
+          sudo rm -rf /usr/local/vcpkg 2>/dev/null || true
+          rm -rf /c/vcpkg 2>/dev/null || true
 
           echo "Disk after cleanup:"
           df -h C: || true
-
       - name: Libraries.
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent ${{ matrix.qt }}

@@ -230,7 +230,9 @@ jobs:
         shell: bash
         run: |
           # Remove intermediate build files from libs (keep only .lib, .h, Qt install)
-          find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+          # Prune entire Qt install prefix first (static Qt needs objects, cmake, mkspecs, plugins, ...)
+          find $LibrariesPath \( -path "$LibrariesPath/Qt-*" -o -path '*/Qt-*' \) -prune -o \
+            '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -print -delete
           # Also remove Qt source/build dir from Telegram build dir
           rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
 
@@ -258,11 +260,15 @@ jobs:
           rm -rf "$TBUILD/$REPO_NAME/.git" 2>/dev/null || true
           echo "Removing msys64..."
           rm -rf "$TBUILD/ThirdParty/msys64" 2>/dev/null || true
-          echo "Cleaning Libraries intermediate .o, .obj, .pdb..."
-          find "$LibrariesPath" -name '*.o' -delete 2>/dev/null || true
-          find "$LibrariesPath" -name '*.obj' -delete 2>/dev/null || true
-          find "$LibrariesPath" -name '*.pdb' -delete 2>/dev/null || true
-          find "$LibrariesPath" -name '*.exp' -delete 2>/dev/null || true
+          echo "Cleaning Libraries intermediate .o/.obj/.pdb (EXCLUDE Qt install - static Qt needs objects-*)..."
+          # CRITICAL: Qt static install keeps required .obj under lib/objects-RelWithDebInfo
+          # Never delete under Qt-* install prefix.
+          find "$LibrariesPath" \( -path "$LibrariesPath/Qt-*" -o -path '*/Qt-*/lib/objects-*' \) -prune -o \
+            -type f \( -name '*.o' -o -name '*.obj' -o -name '*.pdb' -o -name '*.exp' \) -print -delete 2>/dev/null || true
+          # Sanity: required Qt object must still exist
+          echo "Qt objects-RelWithDebInfo sample:"
+          find "$LibrariesPath"/Qt-*/lib/objects-RelWithDebInfo -name 'qrc_qpdf_init.cpp.obj' 2>/dev/null | head -5 || true
+          ls -la "$LibrariesPath"/Qt-*/lib/objects-RelWithDebInfo 2>/dev/null | head -10 || true
           echo "Disk after:"
           df -h C: || true
       - name: Telegram Desktop build.

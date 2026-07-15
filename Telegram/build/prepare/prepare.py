@@ -565,7 +565,7 @@ win:
         -DZLIB_BUILD_MINIZIP=ON ^
         -DZLIB_MINIZIP_BUILD_SHARED=OFF ^
         -DZLIB_MINIZIP_BUILD_TESTING=OFF
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
 mac:
@@ -598,7 +598,7 @@ win:
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
 mac:
@@ -700,7 +700,7 @@ stage('rnnoise', """
     cd out
 win:
     cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    cmake --build . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
 !win:
@@ -887,8 +887,8 @@ win:
         -DAVIF_ENABLE_WERROR=OFF ^
         -DAVIF_CODEC_DAV1D=SYSTEM ^
         -DAVIF_LIBYUV=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
+#     cmake --install . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -918,8 +918,8 @@ win:
         -DBUILD_SHARED_LIBS=OFF ^
         -DENABLE_DECODER=OFF ^
         -DENABLE_ENCODER=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
+#     cmake --install . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -1002,8 +1002,8 @@ win:
         -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE ^
         -DCMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE ^
         -DWITH_EXAMPLES=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
+#     cmake --install . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -1065,8 +1065,8 @@ win:
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         %cmake_defines%
-    cmake --build . --config Debug
-    cmake --install . --config Debug
+#     cmake --build . --config Debug  # disabled for CI (#v701)
+#     cmake --install . --config Debug  # disabled for CI (#v701)
 release:
     cmake --build . --config Release
     cmake --install . --config Release
@@ -1547,7 +1547,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-debug-and-release
+    SET CONFIGURATIONS=-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt-' + qt + '"') + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle

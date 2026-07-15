@@ -1547,7 +1547,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-release
+    SET CONFIGURATIONS=-debug-and-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt-' + qt + '"') + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
@@ -1609,7 +1609,7 @@ mac:
 
     CONFIGURATIONS=-debug
 release:
-    CONFIGURATIONS=-release
+    CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
@@ -1649,7 +1649,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-release
+    SET CONFIGURATIONS=-debug-and-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg

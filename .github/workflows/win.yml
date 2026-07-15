@@ -248,6 +248,17 @@ jobs:
           echo "Removing Qt source/build dir (qt_${{ matrix.qt }}):"
           ls -la "$TBUILD/$REPO_NAME/Telegram/qt_"*/ 2>/dev/null | head -5 || true
           rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
+          echo "Removing Qt source/build..."
+          rm -rf "$TBUILD/$REPO_NAME/Telegram/qt_"* 2>/dev/null || true
+          echo "Removing .git from checkout..."
+          rm -rf "$TBUILD/$REPO_NAME/.git" 2>/dev/null || true
+          echo "Removing msys64..."
+          rm -rf "$TBUILD/ThirdParty/msys64" 2>/dev/null || true
+          echo "Cleaning Libraries intermediate .o, .obj, .pdb..."
+          find "$LibrariesPath" -name '*.o' -delete 2>/dev/null || true
+          find "$LibrariesPath" -name '*.obj' -delete 2>/dev/null || true
+          find "$LibrariesPath" -name '*.pdb' -delete 2>/dev/null || true
+          find "$LibrariesPath" -name '*.exp' -delete 2>/dev/null || true
           echo "Disk after:"
           df -h C: || true
       - name: Telegram Desktop build.

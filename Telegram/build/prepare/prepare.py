@@ -1701,7 +1701,11 @@ win:
 #     cmake --build . --config Debug  # removed for -release CI (#v701)
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
     cmake --build .
-    if not exist "%LIBS_DIR%\\Qt-%QT%\\bin\\qtpaths.exe" copy /Y "%LIBS_DIR%\\Qt-%QT%\\bin\\qtpaths6.exe" "%LIBS_DIR%\\Qt-%QT%\\bin\\qtpaths.exe" >nul 2>&1
+    cd qtbase
+    rem Ensure both qtpaths.exe and qtpaths6.exe exist in build dir before install (for hard link)
+    if not exist bin\qtpaths6.exe if exist bin\qtpaths.exe copy /Y bin\qtpaths.exe bin\qtpaths6.exe >nul 2>&1
+    if not exist bin\qtpaths.exe if exist bin\qtpaths6.exe copy /Y bin\qtpaths6.exe bin\qtpaths.exe >nul 2>&1
+    cd ..
     cmake --install .
 """)
 

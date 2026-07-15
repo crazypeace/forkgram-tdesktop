@@ -1547,7 +1547,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-release
+    SET CONFIGURATIONS=-debug-and-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt-' + qt + '"') + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
@@ -1609,7 +1609,7 @@ mac:
 
     CONFIGURATIONS=-debug
 release:
-    CONFIGURATIONS=-release
+    CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
@@ -1632,8 +1632,8 @@ mac:
         -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \
         -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON
 
-    cmake --build .
-    cmake --install .
+    cmake --build . --config Release
+    cmake --install . --config Release
 win:
     cd qtbase
     echo Applying Qt6 patches (skip win7 compat)...
@@ -1649,7 +1649,7 @@ win:
 
     SET CONFIGURATIONS=-debug
 release:
-    SET CONFIGURATIONS=-release
+    SET CONFIGURATIONS=-debug-and-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1702,9 +1702,9 @@ win:
 #     cmake --install . --config Debug  # removed for -release CI (#v701)
     cmake --build .
     cd qtbase
-    rem Ensure both qtpaths.exe and qtpaths6.exe exist in build dir before install (for hard link)
-    if not exist bin\qtpaths6.exe if exist bin\qtpaths.exe copy /Y bin\qtpaths.exe bin\qtpaths6.exe >nul 2>&1
-    if not exist bin\qtpaths.exe if exist bin\qtpaths6.exe copy /Y bin\qtpaths6.exe bin\qtpaths.exe >nul 2>&1
+rem     rem Ensure both qtpaths.exe and qtpaths6.exe exist in build dir before install (for hard link)
+rem     if not exist bin\qtpaths6.exe if exist bin\qtpaths.exe copy /Y bin\qtpaths.exe bin\qtpaths6.exe >nul 2>&1
+rem     if not exist bin\qtpaths.exe if exist bin\qtpaths6.exe copy /Y bin\qtpaths6.exe bin\qtpaths.exe >nul 2>&1
     cd ..
     cmake --install .
 """)

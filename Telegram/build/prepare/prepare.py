@@ -1639,8 +1639,7 @@ mac:
     cmake --install .
 win:
     cd qtbase
-    echo Applying Qt6 Windows 7 compatibility patches...
-    xcopy /E /Y "%LIBS_DIR%\\qt6windows7\\qtbase\\src" src\\
+    echo Applying Qt6 patches...
     setlocal enabledelayedexpansion
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
         git apply %%i -v

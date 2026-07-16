@@ -65,10 +65,16 @@ function(generate_lang target_name lang_file src_loc)
     COMMENT "Generating lang subsets (${target_name})"
     DEPENDS
         codegen_lang
+        ${gen_timestamp}
         ${gen_keys}
         ${lang_sources}
     )
     add_custom_target(${target_name}_lang_subsets DEPENDS ${subsets_timestamp})
     init_target_folder(${target_name}_lang_subsets "(gen)")
+    # VS multi-config + parallel: custom targets can race if only file DEPENDS is used.
+    # Force target-level order: generate lang_auto* before subsets-only.
+    if (TARGET ${target_name}_lang)
+        add_dependencies(${target_name}_lang_subsets ${target_name}_lang)
+    endif()
     add_dependencies(${target_name} ${target_name}_lang_subsets)
 endfunction()

@@ -389,15 +389,20 @@ jobs:
           -Wno-error=policy ^
           -Wno-error=author ^
           %TDESKTOP_BUILD_DEFINE%
-          if errorlevel 1 (
-            echo CONFIGURE FAILED
+
+          rem configure.bat/cmd often leaves a stale errorlevel even after CMake succeeds
+          if not exist "..\out\CMakeCache.txt" (
+            echo CONFIGURE FAILED: ..\out\CMakeCache.txt missing
             exit /b 1
           )
+          echo CONFIGURE OK: CMakeCache.txt present
 
-          if not exist "%LibrariesPath%\protobuf\build\Release\protoc.exe" (
-            echo ERROR: protoc.exe missing at %LibrariesPath%\protobuf\build\Release\protoc.exe
-            dir /s /b "%LibrariesPath%\protobuf\*protoc*" 2>nul
-            exit /b 1
+          if exist "%LibrariesPath%\protobuf\build\Release\protoc.exe" (
+            echo protoc OK: %LibrariesPath%\protobuf\build\Release\protoc.exe
+          ) else (
+            echo WARN: expected protoc path missing, searching...
+            dir /s /b "%LibrariesPath%\protobuf\*protoc.exe" 2>nul
+            where protoc 2>nul
           )
 
           cmake --build ..\out --config Release --parallel

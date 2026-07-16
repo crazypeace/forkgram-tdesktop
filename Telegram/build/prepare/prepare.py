@@ -1647,9 +1647,7 @@ win:
     )
     cd ..
 
-    SET CONFIGURATIONS=-debug
-release:
-    SET CONFIGURATIONS=-debug-and-release
+    SET CONFIGURATIONS=-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1698,10 +1696,8 @@ win:
         -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
         -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\\Release\\src\\liblcms2.a"
 
-#     cmake --build . --config Debug  # skip Debug Qt for disk (#v701)
-#     cmake --install . --config Debug  # skip Debug Qt for disk (#v701)
-    cmake --build . --config RelWithDebInfo
-    cmake --install . --config RelWithDebInfo
+    cmake --build .
+    cmake --install .
 """)
 
 stage('tg_owt', """
@@ -1910,7 +1906,7 @@ release:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build .
+    cmake --build . --config Release
 mac:
     buildTd() {
         BUILD_CONFIG=$1

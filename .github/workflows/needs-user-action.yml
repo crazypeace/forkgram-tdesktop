@@ -1,10 +1,7 @@
 name: Needs user action.
 
 on:
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   needs-user-action:

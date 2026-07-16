@@ -1,14 +1,7 @@
 name: Upload full source to release.
 
 on:
-  release:
-    types: released
   workflow_dispatch:
-    inputs:
-      release_version:
-        description: 'The version of the release to upload'
-        required: true
-        default: 'v1.0.0'
 
 jobs:
   build:

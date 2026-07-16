@@ -1,13 +1,7 @@
 name: Create Inno Setup Installers
 
 on:
-  release:
-    types: [released]
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version number (e.g., 1.2.3)'
-        required: true
 
 jobs:
   create-installers:

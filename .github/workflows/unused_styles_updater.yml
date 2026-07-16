@@ -1,10 +1,6 @@
 name: Unused styles updater.
 
 on:
-  repository_dispatch:
-    types: ["Restart unused_styles_updater workflow."]
-  schedule:
-    - cron: "0 3 1 * *"
   workflow_dispatch:
 
 jobs:

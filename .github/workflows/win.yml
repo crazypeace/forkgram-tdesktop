@@ -284,7 +284,8 @@ jobs:
           rm -rf "$TBUILD/$REPO_NAME/Telegram"/qt_* 2>/dev/null || true
           rm -rf "$LibrariesPath"/Qt-*/lib/objects-Debug 2>/dev/null || true
           echo "Removing .git / msys64..."
-          rm -rf "$TBUILD/$REPO_NAME/.git" 2>/dev/null || true
+          # Keep .git so CMakeLists.txt can git-apply patches/cmake_zbar.patch etc.
+          # rm -rf "$TBUILD/$REPO_NAME/.git" 2>/dev/null || true
           rm -rf "$TBUILD/ThirdParty/msys64" 2>/dev/null || true
           python - <<'PY'
           import os
@@ -322,36 +323,50 @@ jobs:
           echo "Disk after:"
           df -h C: || true
 
-      - name: Patch cmark_gfm + run_cmake for CMake 4 CMP0218.
+      - name: Patch cmake helpers (zbar + CMake 4 CMP0218).
         shell: bash
         run: |
           set +e
-          CMARK="$TBUILD/$REPO_NAME/cmake/external/cmark_gfm/CMakeLists.txt"
-          RCM="$TBUILD/$REPO_NAME/cmake/run_cmake.py"
+          ROOT="$TBUILD/$REPO_NAME"
+          CMARK="$ROOT/cmake/external/cmark_gfm/CMakeLists.txt"
+          RCM="$ROOT/cmake/run_cmake.py"
+          ZBAR_PATCH="$ROOT/patches/cmake_zbar.patch"
+
+          # 1) Force-apply cmake_zbar.patch without git (Disk cleanup may remove .git)
+          if [ -f "$ZBAR_PATCH" ] && [ -d "$ROOT/cmake" ]; then
+            if [ -f "$ROOT/cmake/external/zbar/CMakeLists.txt" ]; then
+              echo "zbar cmake already present"
+            else
+              echo "Applying cmake_zbar.patch with patch(1) into cmake/"
+              (cd "$ROOT/cmake" && patch -p1 --forward --reject-file=- < "$ZBAR_PATCH") || true
+              if [ -f "$ROOT/cmake/external/zbar/CMakeLists.txt" ]; then
+                echo "zbar cmake applied OK"
+              else
+                echo "ERROR: zbar cmake still missing after patch"
+                ls -la "$ROOT/cmake/external/" | head
+                exit 1
+              fi
+            fi
+            grep -n zbar "$ROOT/cmake/external/CMakeLists.txt" || true
+          else
+            echo "ERROR: missing zbar patch or cmake dir"
+            exit 1
+          fi
+
+          # 2) cmark CMP0218
           if [ -f "$CMARK" ]; then
-            echo "=== cmark before ==="
-            sed -n '55,80p' "$CMARK"
             if ! grep -q 'CMP0218' "$CMARK"; then
-              # Insert CMP0218 handling immediately before CMAKE_ERROR_DEPRECATED FORCE
               sed -i '/set(CMAKE_ERROR_DEPRECATED FALSE CACHE BOOL "" FORCE)/i\    if (POLICY CMP0218)\n        cmake_policy(SET CMP0218 NEW)\n    endif()\n    set(CMAKE_POLICY_DEFAULT_CMP0218 NEW)' "$CMARK"
-              echo "=== cmark after ==="
-              sed -n '55,90p' "$CMARK"
+              echo "cmark CMP0218 patched"
             else
               echo "cmark already has CMP0218"
             fi
-          else
-            echo "cmark missing: $CMARK"
-            ls -la "$TBUILD/$REPO_NAME/cmake/external/" 2>/dev/null | head || true
           fi
+
+          # 3) run_cmake: do not promote deprecated/policy to errors on CMake 4
           if [ -f "$RCM" ]; then
-            echo "=== run_cmake before ==="
-            grep -n "Werror" "$RCM" || true
-            # -Werror=deprecated promotes CMP0218 policy messages to hard errors on CMake 4
             sed -i "s/'-Werror=dev', '-Werror=deprecated'/'-Werror=dev', '-Wno-error=deprecated', '-Wno-error=policy', '-Wno-error=author'/g" "$RCM"
-            echo "=== run_cmake after ==="
             grep -n "Werror\|Wno-error" "$RCM" || true
-          else
-            echo "run_cmake missing: $RCM"
           fi
 
       - name: Telegram Desktop build.
@@ -374,6 +389,16 @@ jobs:
           -Wno-error=policy ^
           -Wno-error=author ^
           %TDESKTOP_BUILD_DEFINE%
+          if errorlevel 1 (
+            echo CONFIGURE FAILED
+            exit /b 1
+          )
+
+          if not exist "%LibrariesPath%\protobuf\build\Release\protoc.exe" (
+            echo ERROR: protoc.exe missing at %LibrariesPath%\protobuf\build\Release\protoc.exe
+            dir /s /b "%LibrariesPath%\protobuf\*protoc*" 2>nul
+            exit /b 1
+          )
 
           cmake --build ..\out --config Release --parallel
 

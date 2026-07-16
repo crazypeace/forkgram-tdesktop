@@ -89,6 +89,11 @@ void ShowMenu(
 			[=] { return session->data().chatsFilters().chatsList(id); },
 			addAction);
 
+		Window::MenuAddMuteAllChatListAction(
+			controller,
+			[=] { return session->data().chatsFilters().chatsList(id); },
+			addAction);
+
 		auto showRemoveBox = [=] {
 			state->removeApi.request(base::make_weak(parent), controller, id);
 		};
@@ -109,6 +114,11 @@ void ShowMenu(
 			[=] { return session->data().chatsList(); },
 			addAction,
 			std::move(customUnreadState));
+
+		Window::MenuAddMuteAllChatListAction(
+			controller,
+			[=] { return session->data().chatsList(); },
+			addAction);
 
 		auto openFiltersSettings = [=] {
 			const auto filters = &session->data().chatsFilters();

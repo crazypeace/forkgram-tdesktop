@@ -322,6 +322,64 @@ jobs:
           echo "Disk after:"
           df -h C: || true
 
+      - name: Patch cmark_gfm for CMake 4 CMP0218.
+        shell: bash
+        run: |
+          set +e
+          F="$TBUILD/$REPO_NAME/cmake/external/cmark_gfm/CMakeLists.txt"
+          if [ ! -f "$F" ]; then
+            echo "cmark CMakeLists not found at $F"
+            ls -la "$TBUILD/$REPO_NAME/cmake/external/" 2>/dev/null | head
+            exit 0
+          fi
+          echo "Before patch (lines 55-80):"
+          sed -n '55,80p' "$F"
+          # If already patched, skip
+          if grep -q 'CMP0218' "$F"; then
+            echo "Already has CMP0218 handling"
+            exit 0
+          fi
+          # Insert policy default before CMAKE_ERROR_DEPRECATED FORCE sets
+          python - <<'PY'
+from pathlib import Path
+import os
+p = Path(os.environ["TBUILD"]) / os.environ["REPO_NAME"] / "cmake/external/cmark_gfm/CMakeLists.txt"
+t = p.read_text(encoding="utf-8")
+needle = 'set(CMAKE_ERROR_DEPRECATED FALSE CACHE BOOL "" FORCE)'
+inject = (
+    "    # CMake 4+: CMP0218 makes CMAKE_*_DEPRECATED sets a policy warning/error\n"
+    "    if (POLICY CMP0218)\n"
+    "        cmake_policy(SET CMP0218 NEW)\n"
+    "    endif()\n"
+    "    set(CMAKE_POLICY_DEFAULT_CMP0218 NEW)\n"
+    "    " + needle
+)
+if needle in t and "CMP0218" not in t:
+    t = t.replace(needle, inject, 1)
+    p.write_text(t, encoding="utf-8")
+    print("patched", p)
+else:
+    print("skip patch: needle missing or already patched")
+PY
+          echo "After patch (lines 55-90):"
+          sed -n '55,90p' "$F"
+
+      - name: Relax run_cmake policy/deprecated errors (CMake 4).
+        shell: bash
+        run: |
+          set +e
+          F="$TBUILD/$REPO_NAME/cmake/run_cmake.py"
+          if [ -f "$F" ]; then
+            echo "Before:"
+            grep -n "Werror" "$F" || true
+            # Do not promote deprecated/policy warnings to errors on modern CMake
+            sed -i "s/'-Werror=dev', '-Werror=deprecated'/'-Werror=dev', '-Wno-error=deprecated', '-Wno-error=policy', '-Wno-error=author'/g" "$F"
+            echo "After:"
+            grep -n "Werror\|Wno-error" "$F" || true
+          else
+            echo "run_cmake.py not found"
+          fi
+
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |

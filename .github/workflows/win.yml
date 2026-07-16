@@ -238,33 +238,31 @@ jobs:
           rm -rf "$TBUILD/$REPO_NAME/Telegram"/qt_* 2>/dev/null || true
           # Drop Debug objects only (keep RelWithDebInfo objects for static link)
           rm -rf "$LibrariesPath"/Qt-*/lib/objects-Debug 2>/dev/null || true
-          # Intermediate objs outside Qt install: use python to avoid find -prune/-delete issues on Git Bash
+          # Intermediate objs outside Qt install via python (Git Bash find -prune/-delete is broken)
           python - <<'PY'
-import os, shutil
-from pathlib import Path
-root = Path(os.environ.get("LibrariesPath", "")).resolve()
-if not root.exists():
-    print("LibrariesPath missing", root)
-    raise SystemExit(0)
-skip_prefixes = []
-for p in root.glob("Qt-*"):
-    skip_prefixes.append(p.resolve())
-print("protect:", [str(p) for p in skip_prefixes])
-n = 0
-for dirpath, dirnames, filenames in os.walk(root):
-    dp = Path(dirpath).resolve()
-    if any(str(dp).startswith(str(sp) + os.sep) or dp == sp for sp in skip_prefixes):
-        dirnames[:] = []  # do not walk into Qt install
-        continue
-    for fn in filenames:
-        if fn.endswith((".o", ".obj", ".pdb", ".exp", ".ilk", ".idb")):
-            try:
-                (dp / fn).unlink()
-                n += 1
-            except OSError:
-                pass
-print(f"deleted {n} intermediate objects outside Qt install")
-PY
+          import os
+          from pathlib import Path
+          root = Path(os.environ.get("LibrariesPath", "")).resolve()
+          if not root.exists():
+              print("LibrariesPath missing", root)
+              raise SystemExit(0)
+          skip = [p.resolve() for p in root.glob("Qt-*")]
+          print("protect:", [str(p) for p in skip])
+          n = 0
+          for dirpath, dirnames, filenames in os.walk(root):
+              dp = Path(dirpath).resolve()
+              if any(str(dp) == str(sp) or str(dp).startswith(str(sp) + os.sep) for sp in skip):
+                  dirnames[:] = []
+                  continue
+              for fn in filenames:
+                  if fn.endswith((".o", ".obj", ".pdb", ".exp", ".ilk", ".idb")):
+                      try:
+                          (dp / fn).unlink()
+                          n += 1
+                      except OSError:
+                          pass
+          print("deleted", n, "intermediate objects outside Qt install")
+          PY
           echo "Disk after free-up:"
           df -h C: || true
 
@@ -274,13 +272,11 @@ PY
           set +e
           echo "Disk before cleanup:"
           df -h C: || true
-          # Runner junk
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
           sudo rm -rf "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
           docker rmi $(docker images -q) 2>/dev/null || true
           sudo rm -rf /usr/local/.ghcup /usr/local/share/powershell /usr/local/share/chromium /usr/local/lib/node_modules 2>/dev/null || true
           sudo rm -rf /opt/microsoft /opt/az 2>/dev/null || true
-          # Qt SOURCE only
           echo "Removing qt_* source/build (keep Qt-* install):"
           rm -rf "$LibrariesPath"/qt_* 2>/dev/null || true
           rm -rf "$TBUILD/Libraries/win64"/qt_* 2>/dev/null || true
@@ -290,38 +286,39 @@ PY
           echo "Removing .git / msys64..."
           rm -rf "$TBUILD/$REPO_NAME/.git" 2>/dev/null || true
           rm -rf "$TBUILD/ThirdParty/msys64" 2>/dev/null || true
-          # Safe intermediate cleanup via python (never touch Qt-*)
           python - <<'PY'
-import os
-from pathlib import Path
-root = Path(os.environ.get("LibrariesPath", "")).resolve()
-skip = [p.resolve() for p in root.glob("Qt-*")] if root.exists() else []
-print("protect Qt installs:", [str(s) for s in skip])
-n = 0
-if root.exists():
-    for dirpath, dirnames, filenames in os.walk(root):
-        dp = Path(dirpath).resolve()
-        if any(str(dp) == str(sp) or str(dp).startswith(str(sp) + os.sep) for sp in skip):
-            dirnames[:] = []
-            continue
-        for fn in filenames:
-            if fn.endswith((".o", ".obj", ".pdb", ".exp", ".ilk", ".idb")):
-                try:
-                    (dp / fn).unlink(); n += 1
-                except OSError:
-                    pass
-print("deleted", n, "files outside Qt")
-# sanity: required static Qt objects
-hits = list(root.glob("Qt-*/lib/objects-RelWithDebInfo/**/qrc_qpdf_init.cpp.obj")) if root.exists() else []
-print("qrc_qpdf_init.cpp.obj hits:", [str(h) for h in hits[:5]])
-if root.exists() and not hits:
-    # still list objects dir
-    for p in root.glob("Qt-*/lib/objects-RelWithDebInfo"):
-        print("objects dir exists:", p, "entries", sum(1 for _ in p.rglob('*')))
-    print("WARNING: qrc_qpdf_init.cpp.obj missing - configure may fail")
-else:
-    print("OK: static Qt objects present")
-PY
+          import os
+          from pathlib import Path
+          root = Path(os.environ.get("LibrariesPath", "")).resolve()
+          skip = [p.resolve() for p in root.glob("Qt-*")] if root.exists() else []
+          print("protect Qt installs:", [str(s) for s in skip])
+          n = 0
+          if root.exists():
+              for dirpath, dirnames, filenames in os.walk(root):
+                  dp = Path(dirpath).resolve()
+                  if any(str(dp) == str(sp) or str(dp).startswith(str(sp) + os.sep) for sp in skip):
+                      dirnames[:] = []
+                      continue
+                  for fn in filenames:
+                      if fn.endswith((".o", ".obj", ".pdb", ".exp", ".ilk", ".idb")):
+                          try:
+                              (dp / fn).unlink()
+                              n += 1
+                          except OSError:
+                              pass
+          print("deleted", n, "files outside Qt")
+          hits = []
+          if root.exists():
+              for p in root.glob("Qt-*/lib/objects-RelWithDebInfo"):
+                  hits.extend(p.rglob("qrc_qpdf_init.cpp.obj"))
+          print("qrc_qpdf_init.cpp.obj hits:", [str(h) for h in hits[:5]])
+          if root.exists() and not hits:
+              for p in root.glob("Qt-*/lib/objects-RelWithDebInfo"):
+                  print("objects dir exists:", p, "entries", sum(1 for _ in p.rglob("*")))
+              print("WARNING: qrc_qpdf_init.cpp.obj missing")
+          else:
+              print("OK: static Qt objects present")
+          PY
           echo "Disk after:"
           df -h C: || true
 

@@ -1839,7 +1839,7 @@ win:
         -Dprotobuf_BUILD_LIBPROTOC=ON ^
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
-    cmake --build .
+    cmake --build . --config Release
     cmake --build . --config Debug
 """)
 # mac:

@@ -307,10 +307,9 @@ Fn<void()> GoToFirstMessageHandler(
 	return [=] { jump(QDate(2013, 8, 1)); };
 }
 
-Fn<void()> GoToMentionHandler(
+Fn<void()> ListMsgMentionHandler(
 		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer,
-		bool after) {
+		not_null<PeerData*> peer) {
 	const auto weak = base::make_weak(controller.get());
 	const auto requestId = std::make_shared<mtpRequestId>(0);
 	const auto open = [=](MsgId id) {
@@ -325,49 +324,9 @@ Fn<void()> GoToMentionHandler(
 		if (*requestId > 0) {
 			return;
 		}
-		// Anchor on the current viewport: the topmost visible message for
-		// "previous" and the bottommost visible message for "next".
-		// Plain group/private chats live in HistoryWidget (History keeps
-		// scrollTopItem = the message at the top of the visible window);
-		// channels use HistoryView::ChatWidget (ListWidget tracks the
-		// visibleTopItem). Try the chat-section first, fall back to history.
-		MsgId anchorId = 0;
-		if (const auto strong = weak.get()) {
-			const auto main = strong->content();
-			if (const auto chat = main->mainSectionAsChat()) {
-				const auto list = chat->listWidget();
-				if (!after) {
-					if (const auto item = list->visibleTopItem()) {
-						anchorId = item->data()->fullId().msg;
-					}
-				} else {
-					if (const auto item = list->lookupItemByY(
-							list->visibleBottom())) {
-						anchorId = item->data()->fullId().msg;
-					}
-				}
-			} else if (const auto historyWidget = main->historyWidget()) {
-				if (const auto history = historyWidget->history()) {
-					if (history->peer == peer) {
-						if (const auto top = history->scrollTopItem) {
-							if (!after) {
-								anchorId = top->data()->fullId().msg;
-							} else if (const auto bottom = history->scrollBottomItem(
-										historyWidget->listViewportHeight())) {
-								anchorId = bottom->data()->fullId().msg;
-							}
-						}
-					}
-				}
-			}
-		}
 		using Flag = MTPmessages_Search::Flag;
-		if (after && !anchorId) {
-			Ui::Toast::Show(
-				controller->widget(),
-				tr::lng_message_not_found(tr::now));
-			return;
-		}
+		// Jump to the newest message that mentions me: take the single
+		// newest result (offset_id = 0, limit = 1) filtered by MyMentions.
 		*requestId = peer->session().api().request(MTPmessages_Search(
 			MTP_flags(Flag()),
 			peer->input(),
@@ -379,11 +338,11 @@ Fn<void()> GoToMentionHandler(
 			MTP_inputMessagesFilterMyMentions(),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
-			MTP_int(after ? 0 : anchorId), // offset_id
+			MTP_int(0), // offset_id (newest first)
 			MTP_int(0), // add_offset
-			MTP_int(10), // limit
+			MTP_int(1), // limit
 			MTP_int(0), // max_id
-			MTP_int(after ? (anchorId + 1) : 0), // min_id
+			MTP_int(0), // min_id
 			MTP_long(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			*requestId = 0;
@@ -399,18 +358,14 @@ Fn<void()> GoToMentionHandler(
 				static const QVector<MTPMessage> kEmpty;
 				return kEmpty;
 			}();
-			auto chosenId = MsgId();
+			MsgId chosenId = MsgId();
 			for (const auto &message : messages) {
 				const auto item = peer->owner().addNewMessage(
 					message,
 					MessageFlags(),
 					NewMessageType::Existing);
 				if (item) {
-					if (!after) {
-						chosenId = std::max(chosenId, item->id);
-					} else if (!chosenId || item->id < chosenId) {
-						chosenId = item->id;
-					}
+					chosenId = std::max(chosenId, item->id);
 				}
 			}
 			if (chosenId) {
@@ -497,8 +452,7 @@ private:
 	void addSetPersonalChannel();
 
 	void addGoToFirstMessage();
-	void addGoToMentionPrevious();
-	void addGoToMentionNext();
+	void addListMsgMention();
 	void addGoToScheduled();
 
 	[[nodiscard]] bool skipCreateActions() const;
@@ -1387,17 +1341,10 @@ void Filler::addGoToFirstMessage() {
 		&st::menuIconShowInChat);
 }
 
-void Filler::addGoToMentionPrevious() {
+void Filler::addListMsgMention() {
 	_addAction(
-		QString("Go to the Pre msg @me"),
-		GoToMentionHandler(_controller, _peer, false),
-		&st::menuIconShowInChat);
-}
-
-void Filler::addGoToMentionNext() {
-	_addAction(
-		QString("Go to the Next msg @me"),
-		GoToMentionHandler(_controller, _peer, true),
+		QString("List msg @me"),
+		ListMsgMentionHandler(_controller, _peer),
 		&st::menuIconShowInChat);
 }
 
@@ -2076,8 +2023,7 @@ void Filler::fillHistoryActions() {
 	addDeleteChat();
 	addLeaveChat();
 	addGoToFirstMessage();
-	addGoToMentionPrevious();
-	addGoToMentionNext();
+	addListMsgMention();
 	addGoToScheduled();
 }
 
@@ -2108,8 +2054,7 @@ void Filler::fillProfileActions() {
 	addDeleteContact();
 	addDeleteTopic();
 	addGoToFirstMessage();
-	addGoToMentionPrevious();
-	addGoToMentionNext();
+	addListMsgMention();
 	addGoToScheduled();
 }
 

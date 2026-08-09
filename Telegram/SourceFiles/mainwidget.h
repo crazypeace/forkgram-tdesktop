@@ -183,7 +183,8 @@ public:
 	void searchMessages(
 		const QString &query,
 		Dialogs::Key inChat,
-		PeerData *searchFrom = nullptr);
+		PeerData *searchFrom = nullptr,
+		bool mentionedMe = false);
 
 	void setChatBackground(
 		const Data::WallPaper &background,

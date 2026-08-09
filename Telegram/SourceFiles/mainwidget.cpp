@@ -794,7 +794,8 @@ void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
 void MainWidget::searchMessages(
 		const QString &query,
 		Dialogs::Key inChat,
-		PeerData *searchFrom) {
+		PeerData *searchFrom,
+		bool mentionedMe) {
 	const auto complex = Data::HashtagWithUsernameFromQuery(query);
 	if (!complex.username.isEmpty()) {
 		_controller->showPeerByLink(Window::PeerByLinkInfo{
@@ -819,6 +820,7 @@ void MainWidget::searchMessages(
 				? inChat
 				: session().data().history(session().user())),
 			.fromPeer = inChat ? searchFrom : nullptr,
+			.mentionedMe = mentionedMe,
 			.tags = tags,
 			.query = tags.empty() ? query : QString(),
 		};
@@ -851,7 +853,8 @@ void MainWidget::searchMessages(
 					controller->content()->searchMessages(
 						query,
 						inChat,
-						searchFrom);
+						searchFrom,
+						mentionedMe);
 				}
 			}
 		}

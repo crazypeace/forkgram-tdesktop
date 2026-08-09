@@ -4181,6 +4181,8 @@ void InnerWidget::applySearchState(SearchState state) {
 	}
 	_searchFromShown = ignoreInChat
 		? nullptr
+		: state.mentionedMe
+		? session().user()
 		: sublist
 		? sublist->sublistPeer().get()
 		: state.fromPeer;
@@ -4209,6 +4211,7 @@ void InnerWidget::applySearchState(SearchState state) {
 		_filter = newFilter;
 		if (_filter.isEmpty()
 			&& !_searchState.fromPeer
+			&& !_searchState.mentionedMe
 			&& _searchState.tags.empty()
 			&& _searchState.tab != ChatSearchTab::PublicPosts) {
 			clearFilter();
@@ -5173,10 +5176,15 @@ void InnerWidget::updateSearchIn() {
 		? ChatSearchPeerTabType::Group
 		: ChatSearchPeerTabType::Chat;
 	const auto fromImage = _searchFromShown
-		? Ui::MakeUserpicThumbnail(_searchFromShown)
+		|| _searchState.mentionedMe
+		? _searchFromShown
+			? Ui::MakeUserpicThumbnail(_searchFromShown)
+			: nullptr
 		: nullptr;
 	const auto fromName = _searchFromShown
 		? _searchFromShown->shortName()
+		: _searchState.mentionedMe
+		? tr::lng_sr_chat_mention(tr::now)
 		: QString();
 	_searchIn->apply({
 		{ ChatSearchTab::ThisTopic, topicIcon },
@@ -5185,7 +5193,8 @@ void InnerWidget::updateSearchIn() {
 		{ ChatSearchTab::Archive, archiveIcon },
 		{ ChatSearchTab::MyMessages, myIcon },
 		{ ChatSearchTab::PublicPosts, publicIcon },
-	}, _searchState.tab, peerTabType, fromImage, fromName);
+	}, _searchState.tab, peerTabType, fromImage, fromName,
+		_searchState.mentionedMe);
 }
 
 void InnerWidget::repaintSearchResult(int index) {

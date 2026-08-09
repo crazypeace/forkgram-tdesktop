@@ -277,7 +277,8 @@ void ChatSearchIn::apply(
 		ChatSearchTab active,
 		ChatSearchPeerTabType peerTabType,
 		std::shared_ptr<Ui::DynamicImage> fromUserpic,
-		QString fromName) {
+		QString fromName,
+		bool mentionedMe) {
 	_tabs = std::move(tabs);
 	_peerTabType = peerTabType;
 	_active = active;
@@ -289,11 +290,15 @@ void ChatSearchIn::apply(
 		i->icon->clone(),
 		tr::semibold(TabLabel(active, peerTabType)));
 
-	auto text = tr::lng_dlg_search_from(
-		tr::now,
-		lt_user,
-		tr::semibold(fromName),
-		tr::marked);
+	auto text = mentionedMe
+		? TextWithEntities{
+			u"Mentioned: "_q + tr::lng_sr_from_me(tr::now)
+		}
+		: tr::lng_dlg_search_from(
+			tr::now,
+			lt_user,
+			tr::semibold(fromName),
+			tr::marked);
 	updateSection(&_from, std::move(fromUserpic), std::move(text));
 
 	resizeToWidth(width());

@@ -89,6 +89,7 @@ PeerData *Key::peer() const {
 [[nodiscard]] bool SearchState::empty() const {
 	return !inChat
 		&& tags.empty()
+		&& !mentionedMe
 		&& QStringView(query).trimmed().isEmpty();
 }
 

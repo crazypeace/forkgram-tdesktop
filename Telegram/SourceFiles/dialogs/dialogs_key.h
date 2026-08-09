@@ -142,6 +142,7 @@ enum class ChatTypeFilter : uchar {
 struct SearchState {
 	Key inChat;
 	PeerData *fromPeer = nullptr;
+	bool mentionedMe = false;
 	ChannelData *community = nullptr;
 	std::vector<Data::ReactionId> tags;
 	ChatSearchTab tab = {};

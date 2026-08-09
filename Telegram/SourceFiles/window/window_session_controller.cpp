@@ -1495,8 +1495,13 @@ void SessionNavigation::searchInChat(
 void SessionNavigation::searchMessages(
 		const QString &query,
 		Dialogs::Key inChat,
-		PeerData *searchFrom) {
-	parentController()->content()->searchMessages(query, inChat, searchFrom);
+		PeerData *searchFrom,
+		bool mentionedMe) {
+	parentController()->content()->searchMessages(
+		query,
+		inChat,
+		searchFrom,
+		mentionedMe);
 }
 
 auto SessionNavigation::showToast(Ui::Toast::Config &&config)

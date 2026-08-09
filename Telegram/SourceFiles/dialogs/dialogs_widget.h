@@ -421,6 +421,7 @@ private:
 
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
+	bool _searchQueryMentionedMe = false;
 	std::vector<Data::ReactionId> _searchQueryTags;
 	ChatSearchTab _searchQueryTab = {};
 	ChannelData *_searchQueryCommunity = nullptr;

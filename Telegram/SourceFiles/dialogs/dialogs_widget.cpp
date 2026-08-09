@@ -576,6 +576,7 @@ Widget::Widget(
 	) | rpl::on_next([=] {
 		auto copy = _searchState;
 		copy.fromPeer = nullptr;
+		copy.mentionedMe = false;
 		if (copy.inChat.sublist()) {
 			copy.inChat = session().data().history(session().user());
 		}
@@ -3047,7 +3048,10 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		.start = true,
 		.peer = (inPeer != nullptr),
 	};
-	if (trimmed.isEmpty() && !fromPeer && inTags.empty()) {
+	if (trimmed.isEmpty()
+		&& !fromPeer
+		&& !_searchState.mentionedMe
+		&& inTags.empty()) {
 		cancelSearchRequest();
 
 		// Otherwise inside first searchApplyEmpty we call searchMode(),
@@ -3071,7 +3075,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		peerSearchReceived({});
 		return true;
-	} else if (inCache) {
+	} else if (inCache && !_searchState.mentionedMe) {
 		const auto success = _singleMessageSearch.lookup(query, [=] {
 			searchRequested(delay);
 		});
@@ -3083,6 +3087,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		if (i != process->cache.end()) {
 			_searchQuery = query;
 			_searchQueryFrom = fromPeer;
+			_searchQueryMentionedMe = false;
 			_searchQueryTags = inTags;
 			_searchQueryTab = tab;
 			_searchQueryCommunity = community;
@@ -3097,6 +3102,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		}
 	} else if (_searchQuery != query
 		|| _searchQueryFrom != fromPeer
+		|| _searchQueryMentionedMe != _searchState.mentionedMe
 		|| _searchQueryTags != inTags
 		|| _searchQueryTab != tab
 		|| _searchQueryCommunity != community
@@ -3105,6 +3111,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		const auto process = currentSearchProcess();
 		_searchQuery = query;
 		_searchQueryFrom = fromPeer;
+		_searchQueryMentionedMe = _searchState.mentionedMe;
 		_searchQueryTags = inTags;
 		_searchQueryTab = tab;
 		_searchQueryCommunity = community;
@@ -3150,7 +3157,9 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 								Data::ReactionToMTP
 							)),
 						MTP_int(topic ? topic->rootId() : 0),
-						MTP_inputMessagesFilterEmpty(),
+						_searchQueryMentionedMe
+							? MTP_inputMessagesFilterMyMentions()
+							: MTP_inputMessagesFilterEmpty(),
 						MTP_int(0), // min_date
 						MTP_int(0), // max_date
 						MTP_int(0), // offset_id
@@ -3364,7 +3373,9 @@ void Widget::searchMore() {
 								Data::ReactionToMTP
 							)),
 						MTP_int(topic ? topic->rootId() : 0),
-						MTP_inputMessagesFilterEmpty(),
+						_searchQueryMentionedMe
+							? MTP_inputMessagesFilterMyMentions()
+							: MTP_inputMessagesFilterEmpty(),
 						MTP_int(0), // min_date
 						MTP_int(0), // max_date
 						MTP_int(process->lastId),
@@ -4179,6 +4190,7 @@ bool Widget::applySearchState(SearchState state) {
 
 	const auto searchCleared = state.query.isEmpty()
 		&& !state.fromPeer
+		&& !state.mentionedMe
 		&& state.tags.empty();
 	if (searchCleared
 		|| inChatChanged
@@ -4278,10 +4290,12 @@ void Widget::showSearchFrom() {
 				if (!chat.topic()) {
 					copy.inChat = chat;
 					copy.fromPeer = from;
+					copy.mentionedMe = false;
 					applySearchState(std::move(copy));
 				} else if (const auto strong = weak.get()) {
 					copy.inChat = strong;
 					copy.fromPeer = from;
+					copy.mentionedMe = false;
 					applySearchState(std::move(copy));
 				}
 			}),
@@ -4414,6 +4428,9 @@ void Widget::updateJumpToDateVisibility(bool fast) {
 
 void Widget::updateSearchFromVisibility(bool fast) {
 	auto visible = [&] {
+		if (_searchState.mentionedMe) {
+			return false;
+		}
 		if (const auto peer = searchInPeer()) {
 			if (peer->isChat() || peer->isMegagroup()) {
 				return !_searchState.fromPeer;

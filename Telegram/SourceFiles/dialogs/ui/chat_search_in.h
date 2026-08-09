@@ -48,7 +48,8 @@ public:
 		ChatSearchTab active,
 		ChatSearchPeerTabType peerTabType,
 		std::shared_ptr<Ui::DynamicImage> fromUserpic,
-		QString fromName);
+		QString fromName,
+		bool mentionedMe = false);
 
 	[[nodiscard]] rpl::producer<> cancelInRequests() const;
 	[[nodiscard]] rpl::producer<> cancelFromRequests() const;

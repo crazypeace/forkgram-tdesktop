@@ -4109,6 +4109,8 @@ bool Widget::applySearchState(SearchState state) {
 	const auto inChatChanged = (_searchState.inChat != state.inChat);
 	const auto communityChanged = (_searchState.community != state.community);
 	const auto fromPeerChanged = (_searchState.fromPeer != state.fromPeer);
+	const auto mentionedMeChanged = (
+		_searchState.mentionedMe != state.mentionedMe);
 	const auto tagsChanged = (_searchState.tags != state.tags);
 	const auto queryChanged = (_searchState.query != state.query);
 	const auto tabChanged = (_searchState.tab != state.tab);
@@ -4212,6 +4214,7 @@ bool Widget::applySearchState(SearchState state) {
 		|| inChatChanged
 		|| communityChanged
 		|| fromPeerChanged
+		|| mentionedMeChanged
 		|| filterChanged
 		|| fromArchiveChanged
 		|| tagsChanged
@@ -4267,6 +4270,7 @@ void Widget::clearSearchCache(bool clearPosts) {
 	}
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
+	_searchQueryMentionedMe = false;
 	_searchQueryTags.clear();
 	if (clearPosts) {
 		_postsProcess.cache.clear();

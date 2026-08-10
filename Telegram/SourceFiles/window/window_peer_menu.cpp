@@ -1269,13 +1269,14 @@ void Filler::addGoToFirstMessage() {
 
 void Filler::addListMsgMention() {
 	const auto weak = base::make_weak(_controller.get());
+	const auto peer = _peer;
 	_addAction(
 		QString("List msg @me"),
 		[=] {
 			if (const auto strong = weak.get()) {
 				strong->searchMessages(
 					QString(),
-					Dialogs::Key(_peer->owner().history(_peer)),
+					Dialogs::Key(peer->owner().history(peer)),
 					nullptr,
 					true /* mentionedMe */);
 			}

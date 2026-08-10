@@ -1128,6 +1128,7 @@ void TopBarWidget::updateControlsGeometry() {
 		_searchCancel.destroy();
 		_jumpToDate.destroy();
 		_chooseFromUser.destroy();
+		_searchMentions.destroy();
 	}
 	auto searchFieldTop = _searchField
 		? countSelectedButtonsTop(_searchShown.value(_searchMode ? 1. : 0.))
@@ -1607,13 +1608,14 @@ bool TopBarWidget::searchJumpToDateFits() const {
 	const auto required = placeholderWidth
 		+ st::dialogsFilterPadding.x()
 		+ st::dialogsSearchFromTopBar.width
+		+ st::dialogsSearchMentionTopBar.width
 		+ st::dialogsCalendarTopBar.width
 		+ st::dialogsCancelSearch.width;
 	return (_searchField->width() >= required);
 }
 
 void TopBarWidget::updateChooseFromUserGeometry() {
-	if (!_searchField || !_searchCancel || !_chooseFromUser) {
+	if (!_searchField || !_searchCancel) {
 		return;
 	}
 	const auto fieldRight = st::dialogsFilterSkip
@@ -1625,9 +1627,15 @@ void TopBarWidget::updateChooseFromUserGeometry() {
 			st::dialogsCalendarTopBar.width,
 			_jumpToDate->shownProgress())
 		: 0;
-	_chooseFromUser->moveToLeft(
-		cancelLeft - reserved - st::dialogsSearchFromTopBar.width,
-		_searchField->y());
+	auto right = cancelLeft - reserved;
+	if (_chooseFromUser) {
+		right -= st::dialogsSearchFromTopBar.width;
+		_chooseFromUser->moveToLeft(right, _searchField->y());
+	}
+	if (_searchMentions) {
+		right -= st::dialogsSearchMentionTopBar.width;
+		_searchMentions->moveToLeft(right, _searchField->y());
+	}
 }
 
 void TopBarWidget::updateSearchJumpToDateVisibility() {
@@ -1660,6 +1668,44 @@ void TopBarWidget::searchEnableChooseFromUser(bool enable, bool visible) {
 	auto additional = QMargins();
 	if (_chooseFromUser && _chooseFromUser->toggled()) {
 		additional.setRight(_chooseFromUser->width());
+	}
+	if (_searchMentions && _searchMentions->toggled()) {
+		additional.setRight(
+			additional.right() + _searchMentions->width());
+	}
+	_searchField->setAdditionalMargins(additional);
+	updateControlsVisibility();
+	updateControlsGeometry();
+}
+
+void TopBarWidget::searchEnableMentions(bool enable, bool visible) {
+	if (!_searchMode) {
+		return;
+	} else if (!enable) {
+		_searchMentions.destroy();
+	} else if (!_searchMentions) {
+		_searchMentions.create(
+			this,
+			object_ptr<Ui::IconButton>(
+				this,
+				st::dialogsSearchMentionTopBar));
+		_searchMentions->toggle(visible, anim::type::instant);
+		_searchMentions->entity()->setAccessibleName(
+			tr::lng_sr_chat_mention(tr::now));
+		_searchMentions->entity()->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(
+			_searchMentionsRequests,
+			_searchMentions->lifetime());
+	} else {
+		_searchMentions->toggle(visible, anim::type::normal);
+	}
+	auto additional = QMargins();
+	if (_chooseFromUser && _chooseFromUser->toggled()) {
+		additional.setRight(_chooseFromUser->width());
+	}
+	if (_searchMentions && _searchMentions->toggled()) {
+		additional.setRight(
+			additional.right() + _searchMentions->width());
 	}
 	_searchField->setAdditionalMargins(additional);
 	updateControlsVisibility();

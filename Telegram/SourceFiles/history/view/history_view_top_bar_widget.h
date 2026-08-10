@@ -91,6 +91,7 @@ public:
 	bool toggleSearch(bool shown, anim::type animated);
 	void searchEnableJumpToDate(bool enable);
 	void searchEnableChooseFromUser(bool enable, bool visible);
+	void searchEnableMentions(bool enable, bool visible);
 	bool searchSetFocus();
 	[[nodiscard]] bool searchMode() const;
 	[[nodiscard]] rpl::producer<bool> searchModeChanges() const;
@@ -126,6 +127,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> chooseFromUserRequest() const {
 		return _chooseFromUserRequests.events();
+	}
+	[[nodiscard]] rpl::producer<> searchMentionsRequest() const {
+		return _searchMentionsRequests.events();
 	}
 	[[nodiscard]] rpl::producer<> searchRequest() const;
 
@@ -237,6 +241,8 @@ private:
 	object_ptr<Ui::InputField> _searchField = { nullptr };
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser
 		= { nullptr };
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _searchMentions
+		= { nullptr };
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate
 		= { nullptr };
 	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
@@ -245,6 +251,7 @@ private:
 	rpl::event_stream<> _searchSubmitted;
 	rpl::event_stream<> _jumpToDateRequests;
 	rpl::event_stream<> _chooseFromUserRequests;
+	rpl::event_stream<> _searchMentionsRequests;
 	rpl::event_stream<bool> _searchModeChanges;
 
 	object_ptr<Ui::IconButton> _back;

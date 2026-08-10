@@ -415,6 +415,9 @@ Widget::Widget(
 , _chooseFromUser(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
+, _searchMentions(
+	_searchControls,
+	object_ptr<Ui::IconButton>(this, st::dialogsSearchMention))
 , _jumpToDate(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
@@ -672,6 +675,11 @@ Widget::Widget(
 	_chooseFromUser->entity()->setClickedCallback([=] { showSearchFrom(); });
 	_chooseFromUser->entity()->setAccessibleName(
 		tr::lng_search_messages_from(tr::now));
+	_searchMentions->entity()->setClickedCallback([=] {
+		showSearchMentions();
+	});
+	_searchMentions->entity()->setAccessibleName(
+		tr::lng_sr_chat_mention(tr::now));
 	rpl::single(rpl::empty) | rpl::then(
 		session().domain().local().localPasscodeChanged()
 	) | rpl::on_next([=] {
@@ -736,6 +744,7 @@ Widget::Widget(
 
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
+	updateSearchMentionsVisibility(true);
 	setupSupportMode();
 	setupScrollUpButton();
 	setupTouchChatPreview();
@@ -1983,6 +1992,7 @@ void Widget::updateControlsVisibility(bool fast) {
 			: anim::type::normal);
 		updateJumpToDateVisibility(fast);
 		updateSearchFromVisibility(fast);
+		updateSearchMentionsVisibility(fast);
 	}
 	if (_connecting) {
 		_connecting->setForceHidden(false);
@@ -2431,6 +2441,10 @@ void Widget::refreshTopBars() {
 			) | rpl::on_next([=] {
 				showSearchFrom();
 			}, _subsectionTopBar->lifetime());
+			_subsectionTopBar->searchMentionsRequest(
+			) | rpl::on_next([=] {
+				showSearchMentions();
+			}, _subsectionTopBar->lifetime());
 			updateControlsGeometry();
 		}
 		const auto communityHistory = _openedCommunity
@@ -2455,6 +2469,7 @@ void Widget::refreshTopBars() {
 		}
 		_subsectionTopBar.destroy();
 		updateSearchFromVisibility(true);
+		updateSearchMentionsVisibility(true);
 	}
 	_forumSearchRequested = false;
 	if (_openedForum && _openedForum->peer()->isChannel()) {
@@ -4186,6 +4201,7 @@ bool Widget::applySearchState(SearchState state) {
 	}
 	updateJumpToDateVisibility();
 	updateSearchFromVisibility();
+	updateSearchMentionsVisibility();
 	updateLockUnlockPosition();
 
 	const auto searchCleared = state.query.isEmpty()
@@ -4304,6 +4320,13 @@ void Widget::showSearchFrom() {
 			controller()->show(std::move(box));
 		}
 	}
+}
+
+void Widget::showSearchMentions() {
+	auto copy = _searchState;
+	copy.fromPeer = nullptr;
+	copy.mentionedMe = true;
+	applySearchState(std::move(copy));
 }
 
 void Widget::searchCursorMoved() {
@@ -4453,6 +4476,32 @@ void Widget::updateSearchFromVisibility(bool fast) {
 	}
 }
 
+void Widget::updateSearchMentionsVisibility(bool fast) {
+	auto visible = [&] {
+		if (_searchState.mentionedMe || _searchState.fromPeer) {
+			return false;
+		}
+		if (const auto peer = searchInPeer()) {
+			return peer->isChat() || peer->isMegagroup();
+		}
+		return false;
+	}();
+	_searchMentions->toggle(
+		visible,
+		fast ? anim::type::instant : anim::type::normal);
+	if (_subsectionTopBar) {
+		_subsectionTopBar->searchEnableMentions(true, visible);
+	} else {
+		auto additional = QMargins();
+		additional.setRight(
+			(_chooseFromUser->toggled()
+				? _chooseFromUser->width()
+				: 0)
+			+ (visible ? _searchMentions->width() : 0));
+		_search->setAdditionalMargins(additional);
+	}
+}
+
 void Widget::updateControlsGeometry() {
 	if (width() < _narrowWidth) {
 		return;
@@ -4518,6 +4567,8 @@ void Widget::updateControlsGeometry() {
 	_jumpToDate->moveToLeft(right, _search->y());
 	right -= _chooseFromUser->width();
 	_chooseFromUser->moveToLeft(right, _search->y());
+	right -= _searchMentions->width();
+	_searchMentions->moveToLeft(right, _search->y());
 
 	const auto barw = width();
 	const auto expandedStoriesTop = filterAreaTop + filterAreaHeight;

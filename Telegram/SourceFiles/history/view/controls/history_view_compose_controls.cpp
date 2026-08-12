@@ -2468,6 +2468,9 @@ void ComposeControls::orderControls() {
 }
 
 bool ComposeControls::showRecordButton() const {
+	if (Core::App().settings().fork().hideVoiceVideoButton()) {
+		return false;
+	}
 	return _features.recordMediaMessage
 		&& (_recordAvailability != Webrtc::RecordAvailability::None)
 		&& !_voiceRecordBar->isListenState()

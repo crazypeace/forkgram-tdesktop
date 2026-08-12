@@ -125,6 +125,9 @@ public:
 	[[nodiscard]] bool hideFromBlockedUsers() const;
 	void setHideFromBlockedUsers(bool newValue);
 
+	[[nodiscard]] bool hideVoiceVideoButton() const;
+	void setHideVoiceVideoButton(bool newValue);
+
 private:
 	bool _squareUserpics = false;
 	bool _audioFade = true;
@@ -149,6 +152,7 @@ private:
 	QString _botsPlatforms;
 	bool _archivedStoriesAreHidden = false;
 	bool _hideFromBlockedUsers = false;
+	bool _hideVoiceVideoButton = false;
 
 };
 

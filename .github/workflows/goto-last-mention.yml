@@ -237,6 +237,17 @@ jobs:
           find $LibrariesPath -type f -name '*.pdb' ! -path '*Release*' -delete 2>/dev/null || true
           df -h "$LibrariesPath"
 
+      - name: Put uncached build output on the larger drive.
+        shell: cmd
+        run: |
+          if exist D:\ (
+            mkdir D:\TBuildOutput
+            mkdir D:\TBuildTemp
+            mklink /d %TBUILD%\%REPO_NAME%\out D:\TBuildOutput
+            echo TEMP=D:\TBuildTemp>>%GITHUB_ENV%
+            echo TMP=D:\TBuildTemp>>%GITHUB_ENV%
+          )
+
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |

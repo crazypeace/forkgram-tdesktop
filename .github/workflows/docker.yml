@@ -3,6 +3,8 @@ name: Docker.
 
 on:
   push:
+    branches-ignore:
+      - feat-v7.2.8
     paths:
       - '.github/workflows/docker.yml'
       - 'Telegram/build/docker/centos_env/**'

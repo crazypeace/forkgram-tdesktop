@@ -6,6 +6,7 @@ on:
     branches-ignore:
       - public-canary
       - private-canary
+      - feat-v7.2.8
     paths-ignore:
       - 'docs/**'
       - '**.md'

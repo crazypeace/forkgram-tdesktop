@@ -161,7 +161,11 @@ jobs:
 
       - name: Disk usage (before Libraries).
         shell: pwsh
-        run: Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+        run: |
+          Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+          $cs = Get-CimInstance Win32_ComputerSystem
+          $cpu = Get-CimInstance Win32_Processor
+          Write-Host ("RAM_GB={0}  LogicalCPUs={1}" -f [math]::Round($cs.TotalPhysicalMemory/1GB,1), $cpu.NumberOfLogicalProcessors)
 
       - name: ThirdParty cache (restore).
         id: cache-third-party
@@ -319,7 +323,7 @@ jobs:
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           %TDESKTOP_BUILD_DEFINE%
 
-          cmake --build ..\out --config Release --parallel
+          cmake --build ..\out --config Release --parallel 2
 
       - name: Save build output cache (even on failure).
         if: always() && steps.cache-build.outputs.cache-hit != 'true'

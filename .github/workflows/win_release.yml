@@ -194,10 +194,6 @@ jobs:
         env:
           API_ID: ${{ secrets.TDESKTOP_API_ID }}
           API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
-          PACKER_KEY: ${{ secrets.PACKER_PRIVATE_KEY }}
-          PACKER_BETA_KEY: ${{ secrets.PACKER_PRIVATE_BETA_KEY }}
-          ALPHA_KEY: ${{ secrets.ALPHA_PRIVATE_KEY }}
-          UPDATE_LOCAL_KEY: ${{ secrets.UPDATE_LOCAL_KEY }}
         run: |
           set -e
           python3 - <<'PY'
@@ -206,34 +202,25 @@ jobs:
           private = pathlib.Path(os.environ['TBUILD']) / 'DesktopPrivate'
           private.mkdir(parents=True, exist_ok=True)
 
-          def literal(name, pem, static=False):
-              lines = [l.strip() for l in pem.strip().splitlines() if l.strip()]
-              body = ''.join(l + '\\n\\\n' for l in lines[:-1]) + lines[-1] + '\\\n'
-              prefix = '[[maybe_unused]] static ' if static else ''
-              return '%sconst char *%s = "\\\n%s";\n' % (prefix, name, body)
-
           # configure.py only regex-scans this one for the API credentials.
           (private / 'custom_api_id.h').write_text(
               'static const int32 ApiId = %s;\n'
               'static const char *ApiHash = "%s";\n'
               % (os.environ['API_ID'], os.environ['API_HASH']))
 
-          # packer.cpp declares both of these extern, so they must be defined here.
+          # This build never signs an update package, but packer.cpp still includes
+          # both headers (Packer itself is built), so they are stubbed empty - the
+          # same shape packer.cpp uses for PACKER_DISABLE_PRIVATE.
           (private / 'packer_private.h').write_text(
-              literal('PrivateKey', os.environ['PACKER_KEY'])
-              + '\n'
-              + literal('PrivateBetaKey', os.environ['PACKER_BETA_KEY']))
+              'const char *PrivateKey = "";\n'
+              'const char *PrivateBetaKey = "";\n')
 
-          # packer.cpp's only use of this is commented out, and -Werror rejects an unused static.
           (private / 'alpha_private.h').write_text(
-              literal('AlphaPrivateKey', os.environ['ALPHA_KEY'], static=True))
-
-          # The v2 release key, passed to Packer as a file path, not compiled in.
-          (private / 'forkgram-release-2026a.pem').write_text(
-              os.environ['UPDATE_LOCAL_KEY'].strip() + '\n')
+              '[[maybe_unused]] static const char *AlphaPrivateKey = "";\n')
           PY
 
-          # Presence of this file makes run_cmake.py build Packer (DESKTOP_APP_SPECIAL_TARGET).
+          # Two things read this file: run_cmake.py takes the special target from it and
+          # configure.py reads the credentials above out of DesktopPrivate because of it.
           echo "$BUILD_TARGET" > $TBUILD/$REPO_NAME/Telegram/build/target
 
           echo "DesktopPrivate contents:"
@@ -476,87 +463,9 @@ jobs:
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out
           key: ${{ runner.OS }}-${{ matrix.arch }}-out-rel-${{ env.CACHE_KEY }}-${{ github.run_id }}
 
-      - name: Set up the code signing certificate.
-        if: env.ONLY_CACHE == 'false'
-        shell: pwsh
-        run: |
-          $pfx = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String("${{ secrets.WIN_CODESIGN_PFX }}"))
-          echo "CODESIGN_PFX=$pfx" >> $env:GITHUB_ENV
-
-          $tool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
-            Sort-Object FullName -Descending | Select-Object -First 1
-          if (-not $tool) { Write-Error 'signtool.exe not found'; exit 1 }
-          echo "SIGNTOOL=$($tool.FullName)" >> $env:GITHUB_ENV
-          echo "Using $($tool.FullName)"
-
-      - name: Sign the binaries.
-        if: env.ONLY_CACHE == 'false'
-        shell: pwsh
-        env:
-          CODESIGN_PASSWORD: ${{ secrets.WIN_CODESIGN_PASSWORD }}
-        run: |
-          $release = "$env:TBUILD\$env:REPO_NAME\out\Release"
-          # Guard explicitly: an empty target list would make this step pass silently.
-          if (-not (Test-Path (Join-Path $release 'Telegram.exe'))) {
-            Write-Error "Telegram.exe is missing from $release"; exit 1
-          }
-          $targets = @('Telegram.exe', 'Updater.exe') |
-            ForEach-Object { Join-Path $release $_ } | Where-Object { Test-Path $_ }
-
-          foreach ($target in $targets) {
-            # Timestamping is what keeps a signature valid past certificate expiry.
-            & $env:SIGNTOOL sign /f $env:CODESIGN_PFX /p $env:CODESIGN_PASSWORD `
-              /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $target
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "Timestamping failed for $target, signing without a timestamp."
-              & $env:SIGNTOOL sign /f $env:CODESIGN_PFX /p $env:CODESIGN_PASSWORD /fd SHA256 $target
-              if ($LASTEXITCODE -ne 0) { exit 1 }
-            }
-          }
-          # Not verify /pa: a self-signed cert has no trusted chain; just check the signature is intact.
-          foreach ($target in $targets) {
-            $sig = Get-AuthenticodeSignature $target
-            $name = [IO.Path]::GetFileName($target)
-            if (-not $sig.SignerCertificate) { Write-Error "$name carries no signature"; exit 1 }
-            if ($sig.Status -in @('NotSigned', 'HashMismatch')) {
-              Write-Error "$name signature is broken: $($sig.Status)"; exit 1
-            }
-            Write-Host "$name -> $($sig.Status), signed by $($sig.SignerCertificate.Subject)"
-          }
-
-      - name: Pack the update file.
-        if: env.ONLY_CACHE == 'false'
-        shell: pwsh
-        run: |
-          $release = "$env:TBUILD\$env:REPO_NAME\out\Release"
-          Set-Location $release
-
-          # Not $args: that is an automatic variable in PowerShell.
-          $packerArgs = @('-version', $env:AppVersion, '-path', 'Telegram.exe', '-path', 'Updater.exe')
-          if ($env:WIN7_LAYER) {
-            $d3d = "modules\${env:MODULES_ARCH}\d3d\d3dcompiler_47.dll"
-            if (-not (Test-Path $d3d)) { Write-Error "missing $d3d for ANGLE"; exit 1 }
-            $packerArgs += @('-path', $d3d)
-          }
-          $packerArgs += @('-target', $env:BUILD_TARGET)
-          $packerArgs += @('-channel', $env:UPD_CHANNEL)
-          $packerArgs += @('-keys-loc', "$env:TBUILD\$env:REPO_NAME\Telegram\Resources\update")
-          $packerArgs += @('-local-key', "$env:TBUILD\DesktopPrivate\forkgram-release-2026a.pem")
-          $packerArgs += @('-local-key-id', 'fg-2026a')
-
-          & .\Packer.exe @packerArgs
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          $update = "${env:UPD_PREFIX}${env:AppVersion}${env:UPD_SUFFIX}"
-          if (-not (Test-Path $update)) { Write-Error "$update was not produced"; exit 1 }
-          echo "Produced $update ($((Get-Item $update).Length) bytes)"
-
       - name: Create the installer.
         if: env.ONLY_CACHE == 'false'
         shell: pwsh
-        env:
-          CODESIGN_PASSWORD: ${{ secrets.WIN_CODESIGN_PASSWORD }}
         run: |
           choco install innosetup -y --no-progress
           $release = "$env:TBUILD\$env:REPO_NAME\out\Release"
@@ -578,8 +487,6 @@ jobs:
 
           $setup = Join-Path $release "${env:SETUP_PREFIX}.${env:AppVersionStrFull}.exe"
           if (-not (Test-Path $setup)) { Write-Error "$setup was not produced"; exit 1 }
-          & $env:SIGNTOOL sign /f $env:CODESIGN_PFX /p $env:CODESIGN_PASSWORD /fd SHA256 $setup
-          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Collect the artifacts.
         if: env.ONLY_CACHE == 'false'
@@ -606,14 +513,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Remove-Item -Recurse -Force $portableDir
 
-          # Installer gets the release name; the update file keeps its raw name for the Telegram job (Updater/PDB excluded).
+          # Installer gets the release name (Updater/PDB excluded).
           $installer = Join-Path $release "${env:SETUP_PREFIX}.${env:AppVersionStrFull}.exe"
           if (-not (Test-Path $installer)) { Write-Error "missing installer: $installer"; exit 1 }
           Copy-Item $installer (Join-Path $deploy $env:ASSET_INSTALLER)
-
-          $update = Join-Path $release "${env:UPD_PREFIX}${env:AppVersion}${env:UPD_SUFFIX}"
-          if (-not (Test-Path $update)) { Write-Error "missing update file: $update"; exit 1 }
-          Copy-Item $update $deploy
 
           Get-ChildItem $deploy | Format-Table Name, Length
 

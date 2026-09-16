@@ -3,7 +3,7 @@ name: Windows 10 amd64.
 on:
   workflow_dispatch:
   push:
-    branches: [feat-v7.2.8]
+    branches: [feat-v7.2.8, restore-playing-audio-file]
     paths-ignore:
       - 'docs/**'
       - '**.md'
@@ -23,7 +23,7 @@ on:
       - 'Telegram/configure.sh'
       - 'Telegram/Telegram.plist'
   pull_request:
-    branches: [feat-v7.2.8]
+    branches: [feat-v7.2.8, restore-playing-audio-file]
     paths-ignore:
       - 'docs/**'
       - '**.md'
@@ -80,7 +80,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           submodules: recursive
-          ref: feat-v7.2.8
+          ref: ${{ github.ref }}
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - name: First set up.

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_document.h"
+#include "data/data_peer.h"
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
@@ -84,7 +85,12 @@ constexpr auto kLastPlayedAudioPref = "last_played_audio";
 std::optional<FullMsgId> LastPlayedAudioSaved;
 Main::Session *LastPlayedAudioSession = nullptr;
 
-[[nodiscard]] std::optional<FullMsgId> ReadLastPlayedAudio(
+struct LastPlayedAudio {
+	FullMsgId itemId;
+	QString username;
+};
+
+[[nodiscard]] std::optional<LastPlayedAudio> ReadLastPlayedAudio(
 		not_null<Main::Session*> session) {
 	const auto serialized = session->local().readPref<QByteArray>(
 		kLastPlayedAudioPref);
@@ -96,16 +102,23 @@ Main::Session *LastPlayedAudioSession = nullptr;
 	auto peerIdSerialized = quint64(0);
 	auto msgIdBare = qint64(0);
 	auto type = qint32(0);
+	auto username = QString();
 	stream >> peerIdSerialized >> msgIdBare >> type;
+	if (!stream.atEnd()) {
+		stream >> username;
+	}
 	if (stream.status() != QDataStream::Ok
 		|| type != qint32(AudioMsgId::Type::Song)
 		|| !peerIdSerialized
 		|| !msgIdBare) {
 		return std::nullopt;
 	}
-	return FullMsgId{
-		DeserializePeerId(peerIdSerialized),
-		MsgId(msgIdBare),
+	return LastPlayedAudio{
+		FullMsgId{
+			DeserializePeerId(peerIdSerialized),
+			MsgId(msgIdBare),
+		},
+		std::move(username),
 	};
 }
 
@@ -117,13 +130,15 @@ void SaveLastPlayedAudio(
 	}
 	LastPlayedAudioSaved = itemId;
 	LastPlayedAudioSession = session;
+	const auto peer = session->data().peer(itemId.peer);
 	auto result = QByteArray();
 	auto stream = QDataStream(&result, QIODevice::WriteOnly);
 	stream.setVersion(QDataStream::Qt_5_1);
 	stream
 		<< SerializePeerId(itemId.peer)
 		<< qint64(itemId.msg.bare)
-		<< qint32(AudioMsgId::Type::Song);
+		<< qint32(AudioMsgId::Type::Song)
+		<< (peer ? peer->username() : QString());
 	session->local().writePref<QByteArray>(kLastPlayedAudioPref, result);
 }
 
@@ -1538,7 +1553,8 @@ void Instance::restoreLastPlayed(not_null<Main::Session*> session) {
 	}
 	_restoreLastPlayedStarted = true;
 
-	const auto itemId = *saved;
+	const auto itemId = saved->itemId;
+	const auto username = saved->username;
 	const auto restore = [=] {
 		const auto item = session->data().message(itemId);
 		const auto document = (item && item->media())
@@ -1548,19 +1564,48 @@ void Instance::restoreLastPlayed(not_null<Main::Session*> session) {
 			restorePaused(AudioMsgId(document, itemId));
 		}
 	};
-	const auto request = [=] {
+	const auto request = [=](not_null<PeerData*> peer) {
 		session->api().requestMessageData(
-			session->data().peerLoaded(itemId.peer),
+			peer,
 			itemId.msg,
 			crl::guard(session, restore));
 	};
-	if (session->data().message(itemId)) {
-		restore();
-	} else if (session->data().chatsListLoaded()) {
-		request();
+	const auto resolve = [=] {
+		if (const auto peer = session->data().peerByUsername(username)) {
+			request(peer);
+			return;
+		}
+		using Flag = MTPcontacts_ResolveUsername::Flag;
+		session->api().request(MTPcontacts_ResolveUsername(
+			MTP_flags(Flag()),
+			MTP_string(username),
+			MTP_string(QString())
+		)).done([=](const MTPcontacts_ResolvedPeer &result) {
+			result.match([&](const MTPDcontacts_resolvedPeer &data) {
+				session->data().processUsers(data.vusers());
+				session->data().processChats(data.vchats());
+				if (const auto peerId = peerFromMTP(data.vpeer())) {
+					if (const auto peer = session->data().peer(peerId)) {
+						request(peer);
+					}
+				}
+			});
+		}).send();
+	};
+	const auto attempt = [=] {
+		if (session->data().message(itemId)) {
+			restore();
+		} else if (const auto peer = session->data().peerLoaded(itemId.peer)) {
+			request(peer);
+		} else if (!username.isEmpty()) {
+			resolve();
+		}
+	};
+	if (session->data().chatsListLoaded()) {
+		attempt();
 	} else {
 		session->data().chatsListLoadedEvents()
-			| rpl::on_next([=](::Data::Folder*) { request(); }, _lifetime);
+			| rpl::on_next([=](::Data::Folder*) { attempt(); }, _lifetime);
 	}
 }
 

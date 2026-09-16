@@ -3,7 +3,7 @@ name: Windows 10 amd64.
 on:
   workflow_dispatch:
   push:
-    branches: [feat-v7.2.8, restore-playing-audio-file]
+    branches: [restore-playing-audio-file]
     paths-ignore:
       - 'docs/**'
       - '**.md'
@@ -23,7 +23,7 @@ on:
       - 'Telegram/configure.sh'
       - 'Telegram/Telegram.plist'
   pull_request:
-    branches: [feat-v7.2.8, restore-playing-audio-file]
+    branches: [restore-playing-audio-file]
     paths-ignore:
       - 'docs/**'
       - '**.md'

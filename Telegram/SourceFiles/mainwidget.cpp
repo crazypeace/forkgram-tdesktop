@@ -334,6 +334,8 @@ MainWidget::MainWidget(
 	}, lifetime());
 	handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Song));
 	handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Voice));
+
+	Media::Player::instance()->restoreLastPlayed(&session());
 	if (_player) {
 		_player->finishAnimating();
 	}

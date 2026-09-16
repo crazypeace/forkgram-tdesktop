@@ -17,6 +17,7 @@ on:
       - public-canary
       - private-canary
       - feat-v7.2.8
+      - restore-playing-audio-file
     paths-ignore:
       - 'docs/**'
       - '**.md'

@@ -225,6 +225,17 @@ jobs:
               prefix = '[[maybe_unused]] static ' if static else ''
               return '%sconst char *%s = "\\\n%s";\n' % (prefix, name, body)
 
+          # These two are needed by every build, signed or not: configure.py regex-scans
+          # this file for them, and the app will not run with an empty hash.
+          missing = {
+            'TDESKTOP_API_ID': os.environ['API_ID'],
+            'TDESKTOP_API_HASH': os.environ['API_HASH'],
+          }
+          empty = [name for name, value in missing.items() if not value.strip()]
+          if empty:
+            print('::error::these secrets are empty: ' + ', '.join(sorted(empty)))
+            raise SystemExit(1)
+
           # configure.py only regex-scans this one for the API credentials.
           (private / 'custom_api_id.h').write_text(
               'static const int32 ApiId = %s;\n'

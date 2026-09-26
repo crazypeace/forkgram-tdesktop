@@ -1,0 +1,12 @@
+diff --git a/options_win.cmake b/options_win.cmake
+--- a/options_win.cmake
++++ b/options_win.cmake
+@@ -31,7 +31,7 @@ if (MSVC)
+         # /Qspectre
+         /utf-8
+         /W4
+-        /MP     # Enable multi process build.
++        /MP2    # Enable multi process build (capped at 2: the 4-core GitHub runner OOMs cl with C1060 on bare /MP).
+         /EHsc   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
+         /w15038 # wrong initialization order
+         /w14265 # class has virtual functions, but destructor is not virtual

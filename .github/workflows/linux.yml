@@ -16,6 +16,7 @@ on:
     branches-ignore:
       - public-canary
       - private-canary
+      - build-v7.2.9
     paths-ignore:
       - 'docs/**'
       - '**.md'
